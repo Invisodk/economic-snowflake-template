@@ -28,9 +28,9 @@ USE ROLE ACCOUNTADMIN;
  ******************************************************************************/
 
 -- GitHub Configuration
-SET GITHUB_USERNAME = 'Storm-Volf-Devoteam';           -- Your GitHub username
-SET GITHUB_PAT_TOKEN = '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';      -- Your GitHub Personal Access Token
-SET GITHUB_ORG = 'invisodk';                   -- GitHub organization or username
+SET GITHUB_USERNAME = 'your-username';           -- Your GitHub username
+SET GITHUB_PAT_TOKEN = 'your-token';      -- Your GitHub Personal Access Token
+SET GITHUB_ORG = 'my-org-name';                   -- GitHub organization or username
 SET REPO_NAME = 'economic-snowflake-template';          -- Repository name
 SET BRANCH_NAME = 'main';                               -- Branch to deploy from (usually 'main' or 'master')
 
