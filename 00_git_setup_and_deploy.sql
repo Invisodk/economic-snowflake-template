@@ -16,85 +16,112 @@
  *        - GitHub Personal Access Token with 'repo' scope
  *        - Repository must be accessible (public or PAT must have access)
  *
- * IMPORTANT: Update the variables below before running!
+ * IMPORTANT: Update the values below before running!
  ******************************************************************************/
 
 USE ROLE ACCOUNTADMIN;
 
 /*******************************************************************************
- * STEP 0: CONFIGURATION VARIABLES
+ * STEP 0: CONFIGURATION
  *
  * ⚠️ UPDATE THESE VALUES FOR YOUR ENVIRONMENT ⚠️
  ******************************************************************************/
 
--- GitHub Configuration
-SET GITHUB_USERNAME = 'your-username';           -- Your GitHub username
-SET GITHUB_PAT_TOKEN = 'your-token';      -- Your GitHub Personal Access Token
-SET GITHUB_ORG = 'my-org-name';                   -- GitHub organization or username
-SET REPO_NAME = 'economic-snowflake-template';          -- Repository name
-SET BRANCH_NAME = 'main';                               -- Branch to deploy from (usually 'main' or 'master')
+-- Database and schema setup
+SET DBNAME = 'ECONOMIC';
+SET SCHEMANAME = 'CONFIG';
+SET NAMESPACE = CONCAT($DBNAME, '.', $SCHEMANAME);
 
--- Snowflake Object Names
-SET GIT_SECRET_NAME = 'GIT_ECONOMIC_TEMPLATE_SECRET';
-SET API_INTEGRATION_NAME = 'GIT_ECONOMIC_INTEGRATION';
-SET GIT_REPO_NAME = 'ECONOMIC_TEMPLATE_REPO';
+-- GitHub configuration (update lines 69-70 with your credentials!)
+SET GITHUB_ORG = 'Invisodk';                          -- Your GitHub organization or username
+SET REPO_NAME = 'economic-snowflake-template';           -- Repository name
+SET BRANCH_NAME = 'main';                                -- Branch to deploy from
 
 /*******************************************************************************
- * STEP 1: CREATE GIT SECRET
+ * STEP 1: CREATE DATABASE AND SCHEMA
+ ******************************************************************************/
+
+CREATE DATABASE IF NOT EXISTS IDENTIFIER($DBNAME);
+USE DATABASE IDENTIFIER($DBNAME);
+
+CREATE SCHEMA IF NOT EXISTS IDENTIFIER($NAMESPACE);
+USE SCHEMA IDENTIFIER($NAMESPACE);
+
+/*******************************************************************************
+ * STEP 2: CREATE GIT SECRET
  *
  * Stores your GitHub PAT token securely in Snowflake.
  * This secret is used to authenticate with GitHub.
+ *
+ * ⚠️ UPDATE USERNAME AND PASSWORD BELOW WITH YOUR GITHUB CREDENTIALS ⚠️
  ******************************************************************************/
 
-CREATE OR REPLACE SECRET IDENTIFIER($GIT_SECRET_NAME)
+CREATE OR REPLACE SECRET GIT_ECONOMIC_TEMPLATE_SECRET
   TYPE = password
-  USERNAME = $GITHUB_USERNAME
-  PASSWORD = $GITHUB_PAT_TOKEN
+  USERNAME = 'your-username'           -- ⚠️ CHANGE THIS
+  PASSWORD = 'your-pat-token'     -- ⚠️ CHANGE THIS
   COMMENT = 'GitHub PAT token for Economic Snowflake Template repository access';
 
 -- Grant usage to SYSADMIN so they can use git integration
-GRANT USAGE ON SECRET IDENTIFIER($GIT_SECRET_NAME) TO ROLE SYSADMIN;
+GRANT USAGE ON SECRET GIT_ECONOMIC_TEMPLATE_SECRET TO ROLE SYSADMIN;
 
 /*******************************************************************************
- * STEP 2: CREATE API INTEGRATION FOR GITHUB
+ * STEP 3: CREATE API INTEGRATION FOR GITHUB
  *
  * Allows Snowflake to communicate with GitHub's API.
  * This integration is reusable for multiple repositories.
  ******************************************************************************/
 
-CREATE OR REPLACE API INTEGRATION IDENTIFIER($API_INTEGRATION_NAME)
+SET API_PREFIX = CONCAT('https://github.com/', $GITHUB_ORG, '/');
+
+CREATE OR REPLACE API INTEGRATION GIT_ECONOMIC_INTEGRATION
   API_PROVIDER = git_https_api
-  API_ALLOWED_PREFIXES = (CONCAT('https://github.com/', $GITHUB_ORG, '/'))
-  ALLOWED_AUTHENTICATION_SECRETS = (IDENTIFIER($GIT_SECRET_NAME))
+  API_ALLOWED_PREFIXES = ($API_PREFIX)
+  ALLOWED_AUTHENTICATION_SECRETS = (GIT_ECONOMIC_TEMPLATE_SECRET)
   ENABLED = TRUE
   COMMENT = 'Git integration for Economic Snowflake Template deployment';
 
 -- Grant usage to SYSADMIN
-GRANT USAGE ON INTEGRATION IDENTIFIER($API_INTEGRATION_NAME) TO ROLE SYSADMIN;
+GRANT USAGE ON INTEGRATION GIT_ECONOMIC_INTEGRATION TO ROLE SYSADMIN;
+
+-- Grant privilege to create git repositories
+USE ROLE ACCOUNTADMIN;
+GRANT CREATE GIT REPOSITORY ON SCHEMA IDENTIFIER($NAMESPACE) TO ROLE SYSADMIN;
 
 /*******************************************************************************
- * STEP 3: CREATE GIT REPOSITORY OBJECT
+ * STEP 4: CREATE GIT REPOSITORY OBJECT
  *
  * Creates a reference to your GitHub repository in Snowflake.
  * This allows you to execute SQL files directly from the repo.
  ******************************************************************************/
 
 USE ROLE SYSADMIN;
+USE SCHEMA IDENTIFIER($NAMESPACE);
 
-CREATE OR REPLACE GIT REPOSITORY IDENTIFIER($GIT_REPO_NAME)
-  API_INTEGRATION = IDENTIFIER($API_INTEGRATION_NAME)
-  GIT_CREDENTIALS = IDENTIFIER($GIT_SECRET_NAME)
-  ORIGIN = CONCAT('https://github.com/', $GITHUB_ORG, '/', $REPO_NAME)
+SET GIT_ORIGIN = CONCAT('https://github.com/', $GITHUB_ORG, '/', $REPO_NAME);
+
+CREATE OR REPLACE GIT REPOSITORY ECONOMIC_TEMPLATE_REPO
+  API_INTEGRATION = GIT_ECONOMIC_INTEGRATION
+  GIT_CREDENTIALS = GIT_ECONOMIC_TEMPLATE_SECRET
+  ORIGIN = $GIT_ORIGIN
   COMMENT = 'Economic API integration template repository';
 
+/*******************************************************************************
+ * STEP 5: FETCH AND VERIFY REPOSITORY
+ ******************************************************************************/
+
+USE ROLE ACCOUNTADMIN;
+USE SCHEMA IDENTIFIER($NAMESPACE);
+
 -- Fetch latest code from GitHub
-ALTER GIT REPOSITORY IDENTIFIER($GIT_REPO_NAME) FETCH;
+ALTER GIT REPOSITORY ECONOMIC_TEMPLATE_REPO FETCH;
 
 -- List files in repository (verification step)
-LIST @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_NAME);
+-- Uncomment to verify files are accessible:
+-- LS @ECONOMIC_TEMPLATE_REPO/branches/main;
 
 /*******************************************************************************
- * STEP 4: EXECUTE DEPLOYMENT
+ * STEP 6: EXECUTE DEPLOYMENT
  *
  * Runs the master execution script which will deploy all components:
  * - Network rules and secrets
@@ -107,10 +134,10 @@ LIST @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_NAME);
  ******************************************************************************/
 
 -- Execute the master deployment script
-EXECUTE IMMEDIATE FROM @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_NAME)/00_execute_all_files_in_repo.sql;
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/00_execute_all_files_in_repo.sql;
 
 /*******************************************************************************
- * STEP 5: POST-DEPLOYMENT TASKS
+ * STEP 7: POST-DEPLOYMENT TASKS
  *
  * After deployment completes, you MUST update the Economic API secrets
  * with your actual credentials!
@@ -135,7 +162,7 @@ EXECUTE IMMEDIATE FROM @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_N
 -- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY();
 
 /*******************************************************************************
- * STEP 6: CLEANUP (OPTIONAL - SECURITY BEST PRACTICE)
+ * STEP 8: CLEANUP (OPTIONAL - SECURITY BEST PRACTICE)
  *
  * After successful deployment, you can remove the Git objects.
  * This follows security best practices to minimize attack surface.
@@ -146,9 +173,9 @@ EXECUTE IMMEDIATE FROM @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_N
 -- ⚠️ UNCOMMENT TO CLEANUP AFTER SUCCESSFUL DEPLOYMENT ⚠️
 
 -- USE ROLE ACCOUNTADMIN;
--- DROP GIT REPOSITORY IF EXISTS IDENTIFIER($GIT_REPO_NAME);
--- DROP INTEGRATION IF EXISTS IDENTIFIER($API_INTEGRATION_NAME);
--- DROP SECRET IF EXISTS IDENTIFIER($GIT_SECRET_NAME);
+-- DROP GIT REPOSITORY IF EXISTS ECONOMIC_TEMPLATE_REPO;
+-- DROP INTEGRATION IF EXISTS GIT_ECONOMIC_INTEGRATION;
+-- DROP SECRET IF EXISTS GIT_ECONOMIC_TEMPLATE_SECRET;
 
 /*******************************************************************************
  * TROUBLESHOOTING
@@ -165,7 +192,7 @@ EXECUTE IMMEDIATE FROM @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_N
 -- SHOW GIT REPOSITORIES LIKE 'ECONOMIC_TEMPLATE_REPO';
 
 -- List files in repository
--- LIST @ECONOMIC_TEMPLATE_REPO/branches/main;
+-- LS @ECONOMIC_TEMPLATE_REPO/branches/main;
 
 -- Check git repository fetch status
 -- SELECT SYSTEM$GIT_REPOSITORY_STATUS('ECONOMIC_TEMPLATE_REPO');
@@ -199,7 +226,7 @@ EXECUTE IMMEDIATE FROM @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_N
  * NEXT STEPS AFTER DEPLOYMENT
  ******************************************************************************/
 
--- 1. Update Economic API secrets with real credentials (see STEP 5 above)
+-- 1. Update Economic API secrets with real credentials (see STEP 7 above)
 -- 2. Test API connection with demo data
 -- 3. Run initial data ingestion
 -- 4. Verify data in Bronze views
@@ -209,7 +236,7 @@ EXECUTE IMMEDIATE FROM @IDENTIFIER($GIT_REPO_NAME)/branches/IDENTIFIER($BRANCH_N
 --    - ECONOMIC_READ for analysts/BI tools
 --    - ECONOMIC_WRITE for data engineers
 --    - ECONOMIC_ADMIN for administrators
--- 8. Optional: Clean up Git objects (see STEP 6 above)
+-- 8. Optional: Clean up Git objects (see STEP 8 above)
 
 /*******************************************************************************
  * END OF SCRIPT
