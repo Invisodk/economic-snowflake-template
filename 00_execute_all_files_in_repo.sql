@@ -144,29 +144,6 @@ SELECT
     'Economic API integration has been deployed successfully.' AS MESSAGE,
     'Next steps: Update API secrets and run first ingestion.' AS ACTION;
 
--- Show created objects summary
-SELECT 'Database' AS OBJECT_TYPE, COUNT(*) AS COUNT FROM (SHOW DATABASES LIKE 'ECONOMIC')
-UNION ALL
-SELECT 'Schemas', COUNT(*) FROM (SHOW SCHEMAS IN DATABASE ECONOMIC)
-UNION ALL
-SELECT 'Roles', COUNT(*) FROM (SHOW ROLES LIKE 'ECONOMIC%')
-UNION ALL
-SELECT 'Secrets', COUNT(*) FROM (SHOW SECRETS LIKE 'ECONOMIC%')
-UNION ALL
-SELECT 'Integrations', COUNT(*) FROM (SHOW INTEGRATIONS LIKE 'ECONOMIC%')
-UNION ALL
-SELECT 'Functions', COUNT(*) FROM (SHOW FUNCTIONS IN SCHEMA ECONOMIC.UTIL)
-UNION ALL
-SELECT 'Procedures', COUNT(*) FROM (SHOW PROCEDURES IN SCHEMA ECONOMIC.UTIL)
-UNION ALL
-SELECT 'Tables', COUNT(*) FROM (SHOW TABLES IN SCHEMA ECONOMIC.RAW)
-UNION ALL
-SELECT 'Bronze Views', COUNT(*) FROM (SHOW VIEWS IN SCHEMA ECONOMIC.BRONZE)
-UNION ALL
-SELECT 'Silver Views', COUNT(*) FROM (SHOW VIEWS IN SCHEMA ECONOMIC.SILVER)
-UNION ALL
-SELECT 'Tasks', COUNT(*) FROM (SHOW TASKS IN DATABASE ECONOMIC);
-
 /*******************************************************************************
  * POST-DEPLOYMENT INSTRUCTIONS
  ******************************************************************************/
