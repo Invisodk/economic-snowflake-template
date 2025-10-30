@@ -1,0 +1,104 @@
+{
+  "collection": [
+    {
+      "bookedInvoiceNumber": 10061726,
+      "currency": "DKK",
+      "customer": {
+        "customerNumber": 27495,
+        "self": "https://restapi.e-conomic.com/customers/27495"
+      },
+      "date": "2025-10-24",
+      "delivery": {
+        "address": "Min købmand Bjerregrav\nAtt. Sibylle Balschmidt-Black\nGamle Aalborgvej 16",
+        "city": "Møldrup",
+        "country": "Danmark",
+        "zip": "9632"
+      },
+      "dueDate": "2025-10-24",
+      "exchangeRate": 100,
+      "grossAmount": 318,
+      "grossAmountInBaseCurrency": 318,
+      "layout": {
+        "layoutNumber": 22,
+        "self": "https://restapi.e-conomic.com/layouts/22"
+      },
+      "lines": [
+        {
+          "description": "Comfort Walk Go™ Sele - Størrelse : S- Farve : Orange Sun",
+          "discountPercentage": 0,
+          "lineNumber": 1,
+          "product": {
+            "productNumber": "HAR0222",
+            "self": "https://restapi.e-conomic.com/products/HAR0222"
+          },
+          "quantity": 1,
+          "sortKey": 1,
+          "totalNetAmount": 223.2,
+          "unitCostPrice": 0,
+          "unitNetPrice": 223.2,
+          "vatAmount": 55.8,
+          "vatRate": 25
+        },
+        {
+          "description": "GLS (DK) nærmeste PakkeShop",
+          "discountPercentage": 0,
+          "lineNumber": 2,
+          "product": {
+            "productNumber": "fragtmm",
+            "self": "https://restapi.e-conomic.com/products/fragtmm"
+          },
+          "quantity": 1,
+          "sortKey": 2,
+          "totalNetAmount": 31.2,
+          "unitCostPrice": 0,
+          "unitNetPrice": 31.2,
+          "vatAmount": 7.8,
+          "vatRate": 25
+        }
+      ],
+      "netAmount": 254.4,
+      "netAmountInBaseCurrency": 254.4,
+      "notes": {
+        "heading": "382990",
+        "textLine1": "61295"
+      },
+      "orderNumber": 60291,
+      "paymentTerms": {
+        "creditCardCompany": {
+          "customerNumber": 2,
+          "self": "https://restapi.e-conomic.com/customers/2"
+        },
+        "name": "Paid with creditcard",
+        "paymentTermsNumber": 10,
+        "paymentTermsType": "creditcard",
+        "self": "https://restapi.e-conomic.com/payment-terms/10"
+      },
+      "pdf": {
+        "download": "https://restapi.e-conomic.com/invoices/booked/10061726/pdf"
+      },
+      "recipient": {
+        "address": "Kirketoften 5",
+        "city": "Møldrup",
+        "country": "Danmark",
+        "name": "Sibylle Balschmidt-Black",
+        "vatZone": {
+          "enabledForCustomer": true,
+          "enabledForSupplier": true,
+          "name": "Domestic",
+          "self": "https://restapi.e-conomic.com/vat-zones/1",
+          "vatZoneNumber": 1
+        },
+        "zip": "9632"
+      },
+      "references": {
+        "other": "61295"
+      },
+      "remainder": 0,
+      "remainderInBaseCurrency": 0,
+      "roundingAmount": 0,
+      "self": "https://restapi.e-conomic.com/invoices/booked/10061726",
+      "sent": "https://restapi.e-conomic.com/invoices/booked/10061726/sent",
+      "vatAmount": 63.6
+    }
+  ]
+}

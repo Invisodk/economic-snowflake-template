@@ -1,0 +1,55 @@
+{
+  "collection": [
+    {
+      "barred": false,
+      "costPrice": 40,
+      "description": "V-cut T-shirt, size S-XXL",
+      "invoices": {
+        "booked": "https://restapi.e-conomic.com/products/1/invoices/booked?demo=true",
+        "drafts": "https://restapi.e-conomic.com/products/1/invoices/drafts?demo=true",
+        "self": "https://restapi.e-conomic.com/products/1/invoices?demo=true"
+      },
+      "lastUpdated": "2022-06-24T08:25:00Z",
+      "name": "Noname T-shirt Black",
+      "pricing": {
+        "currencySpecificSalesPrices": "https://restapi.e-conomic.com/products/1/pricing/currency-specific-sales-prices?demo=true"
+      },
+      "productGroup": {
+        "inventoryEnabled": false,
+        "name": "Varer m/moms",
+        "productGroupNumber": 1,
+        "products": "https://restapi.e-conomic.com/product-groups/1/products?demo=true",
+        "salesAccounts": "https://restapi.e-conomic.com/product-groups/1/sales-accounts?demo=true",
+        "self": "https://restapi.e-conomic.com/product-groups/1?demo=true"
+      },
+      "productNumber": "1",
+      "recommendedPrice": 90,
+      "salesPrice": 70,
+      "self": "https://restapi.e-conomic.com/products/1?demo=true",
+      "unit": {
+        "name": "stk.",
+        "products": "https://restapi.e-conomic.com/units/1/products?demo=true",
+        "self": "https://restapi.e-conomic.com/units/1?demo=true",
+        "unitNumber": 1
+      }
+    }
+  ],
+  "metaData": {
+    "create": {
+      "description": "Create a new product",
+      "href": "https://restapi.e-conomic.com/products?skippages=0&pagesize=1&demo=true",
+      "httpMethod": "post"
+    }
+  },
+  "pagination": {
+    "firstPage": "https://restapi.e-conomic.com/products?skippages=0&pagesize=1&demo=true",
+    "lastPage": "https://restapi.e-conomic.com/products?skippages=6&pagesize=1&demo=true",
+    "maxPageSizeAllowed": 1000,
+    "nextPage": "https://restapi.e-conomic.com/products?skippages=1&pagesize=1&demo=true",
+    "pageSize": 1,
+    "results": 7,
+    "resultsWithoutFilter": 7,
+    "skipPages": 0
+  },
+  "self": "https://restapi.e-conomic.com/products?skippages=0&pagesize=1&demo=true"
+}

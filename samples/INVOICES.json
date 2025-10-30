@@ -1,0 +1,92 @@
+
+
+{
+  "collection": [
+    {
+      "bookedInvoiceNumber": 1,
+      "currency": "DKK",
+      "customer": {
+        "customerNumber": 1,
+        "self": "https://restapi.e-conomic.com/customers/1?demo=true"
+      },
+      "date": "2022-06-02",
+      "delivery": {
+        "address": "Langebrogade 1",
+        "city": "København K",
+        "country": "Denmark",
+        "zip": "1411"
+      },
+      "deliveryLocation": {
+        "deliveryLocationNumber": 1,
+        "self": "https://restapi.e-conomic.com/customers/1/delivery-locations/1?demo=true"
+      },
+      "dueDate": "2022-06-10",
+      "exchangeRate": 100,
+      "grossAmount": 87.5,
+      "grossAmountInBaseCurrency": 87.5,
+      "layout": {
+        "layoutNumber": 21,
+        "self": "https://restapi.e-conomic.com/layouts/21?demo=true"
+      },
+      "netAmount": 70,
+      "netAmountInBaseCurrency": 70,
+      "orderNumber": 1,
+      "paymentTerms": {
+        "daysOfCredit": 8,
+        "description": "Netto 8 dage",
+        "name": "Netto 8 dage",
+        "paymentTermsNumber": 1,
+        "paymentTermsType": "net",
+        "self": "https://restapi.e-conomic.com/payment-terms/1?demo=true"
+      },
+      "pdf": {
+        "download": "https://restapi.e-conomic.com/invoices/booked/1/pdf?demo=true"
+      },
+      "recipient": {
+        "address": "Avenue des Arts No 5",
+        "attention": {
+          "customerContactNumber": 1,
+          "self": "https://restapi.e-conomic.com/customers/1/contacts/1?demo=true"
+        },
+        "city": "Brussels",
+        "country": "Belgium",
+        "name": "Customer 1",
+        "vatZone": {
+          "enabledForCustomer": true,
+          "enabledForSupplier": true,
+          "name": "Domestic",
+          "self": "https://restapi.e-conomic.com/vat-zones/1?demo=true",
+          "vatZoneNumber": 1
+        },
+        "zip": "1040"
+      },
+      "references": {
+        "customerContact": {
+          "customerContactNumber": 2,
+          "self": "https://restapi.e-conomic.com/customers/1/contacts/2?demo=true"
+        },
+        "salesPerson": {
+          "employeeNumber": 1,
+          "self": "https://restapi.e-conomic.com/employees/1?demo=true"
+        }
+      },
+      "remainder": 0,
+      "remainderInBaseCurrency": 0,
+      "roundingAmount": 0,
+      "self": "https://restapi.e-conomic.com/invoices/booked/1?demo=true",
+      "sent": "https://restapi.e-conomic.com/invoices/booked/1/sent?demo=true",
+      "vatAmount": 17.5
+    }
+  ],
+  "pagination": {
+    "firstPage": "https://restapi.e-conomic.com/invoices/booked?skippages=0&pagesize=1&demo=true",
+    "lastPage": "https://restapi.e-conomic.com/invoices/booked?skippages=5&pagesize=1&demo=true",
+    "maxPageSizeAllowed": 1000,
+    "nextPage": "https://restapi.e-conomic.com/invoices/booked?skippages=1&pagesize=1&demo=true",
+    "pageSize": 1,
+    "results": 6,
+    "resultsWithoutFilter": 6,
+    "skipPages": 0
+  },
+  "self": "https://restapi.e-conomic.com/invoices/booked?skippages=0&pagesize=1&demo=true"
+}
