@@ -1,0 +1,111 @@
+# ----------------------------------------------------------------------
+# 1. Operating System and Editor Files (Always Safe to Include)
+# ----------------------------------------------------------------------
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+# Visual Studio Code
+.vscode/
+
+# Vim/Nano
+*.swp
+*.bak
+*.swo
+
+# ----------------------------------------------------------------------
+# 2. Python Specific Files
+# ----------------------------------------------------------------------
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / Packaging
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-file.txt
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.hypothesis/
+.pytest_cache/
+
+# User-defined run files
+*.egg
+*.egg-info
+.installed.cfg
+*.json
+*.mo
+*.pot
+*.log
+
+# Jupyter Notebook Files
+.ipynb_checkpoints
+
+# ----------------------------------------------------------------------
+# 3. Node/JavaScript Specific Files (If applicable)
+# ----------------------------------------------------------------------
+
+# Dependency directory
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.log
+
+# Build/Dist folders
+dist/
+build/
+*.tsbuildinfo
+
+# ----------------------------------------------------------------------
+# 4. Standard Build/Log/Temp Folders
+# ----------------------------------------------------------------------
+
+# Temporary or Backup Files
+*.*~
+\#*#
+*.tmp
+
+# Compiled/Output Directories
+/bin/
+/obj/
+/out/
+/target/
+
+# Log and Error Files
+*.log
+*.err
+log/
+temp/
+tmp/
+
+# ----------------------------------------------------------------------
+# 5. Credentials and Sensitive Files (CRITICAL)
+# ----------------------------------------------------------------------
+
+# Configuration files that may contain secrets
+*.env
+.env
+.flaskenv
+config.local.json
+settings.local.py
+# Example: a private SSH key that accidentally gets generated
+*.key
+*.pem
