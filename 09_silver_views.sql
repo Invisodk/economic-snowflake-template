@@ -1,33 +1,41 @@
 /*---------------------------------------------------------------*/
 /**                                                             **/
-/*** SILVER LAYER - CLEAN & INTUITIVE                          **/
-/*** Detail-level views with business-friendly names           **/
-/*** NO AGGREGATION - Let BI tools handle that                 **/
-/**                                                             **/
-/*** 3 Core Views:                                             **/
-/*** 1. VW_SALES_DETAIL - Product sales (51k+ rows)            **/
-/*** 2. VW_FINANCIAL_DETAIL - Accounting entries               **/
-/*** 3. VW_CUSTOMER_MASTER - Customer dimension                **/
+/*** SILVER LAYER - BULK ENDPOINTS WITH PRESTASHOP             ***/
+/*** Uses new simplified Bronze views (bulk endpoints).        ***/
+/*** BACKWARD COMPATIBLE: Keeps all column names from old      ***/
+/*** VW_SALES_DETAIL to avoid breaking existing dashboards.    ***/
+/***                                                           ***/
+/*** Data Sources:                                             ***/
+/***   - INVOICE_LINES: OpenAPI bulk endpoint (line-level)     ***/
+/***   - INVOICES: REST API (header-level: dates, customer)    ***/
+/***   - CUSTOMERS: REST API (customer master)                 ***/
+/***   - PRODUCTS: REST API (product catalog from e-conomic)   ***/
+/***   - DIM_PRODUCT_SKU: PrestaShop (category, size, color)   ***/
+/***                                                           ***/
+/*** Key Change: INVOICE_LINES now joins with INVOICES to get  ***/
+/*** invoice_date, customer_number, delivery_country, etc.     ***/
 /**                                                             **/
 /*---------------------------------------------------------------*/
-USE ROLE PLAYGROUND_ADMIN;
-USE DATABASE PLAYGROUND;
+
+USE ROLE ECONOMIC_ADMIN;
+USE DATABASE ECONOMIC;
 USE SCHEMA SILVER;
 
 
 -- ============================================================
--- VIEW 1: SALES DETAIL
+-- VIEW 1: SALES DETAIL (ENHANCED WITH PRESTASHOP)
 -- One row per invoice line - NO AGGREGATION
+-- BACKWARD COMPATIBLE: All original column names preserved
 -- ============================================================
 CREATE OR REPLACE VIEW VW_SALES_DETAIL AS
 SELECT
   -- ==== INVOICE IDENTIFIERS ====
   il.invoice_number                                   AS invoice_id,
   il.line_number                                      AS line_id,
-  il.invoice_date                                     AS sale_date,
+  inv.invoice_date                                    AS sale_date,
 
   -- ==== CUSTOMER INFO ====
-  il.customer_number                                  AS customer_id,
+  inv.customer_number                                 AS customer_id,
   COALESCE(c.customer_name, 'Unknown')               AS customer_name,
   COALESCE(c.city, 'Unknown')                        AS customer_city,
   COALESCE(c.country, 'Unknown')                     AS customer_country,
@@ -37,102 +45,108 @@ SELECT
     ELSE 'Unknown'
   END                                                 AS customer_segment,
 
-  -- ==== PRODUCT INFO ====
+  -- ==== PRODUCT INFO (FROM E-CONOMIC) ====
   il.sku                                              AS product_sku,
-  COALESCE(p.product_name, il.line_description, 'Unknown Product') AS product_name,
+
+  -- ==== UNIFIED PRODUCT NAME ====
+  -- ps.product_name already includes fallback logic via DIM_PRODUCT_SKU_ENRICHED:
+  -- PrestaShop name → Economic invoice description → 'Unknown Product'
+  COALESCE(ps.product_name, 'Unknown Product')       AS product_name,
+
+  -- Core product name (stripped of size/color for grouping)
   REGEXP_REPLACE(
     COALESCE(p.product_name, il.line_description, 'Unknown Product'),
-    ' - (Size|Størrelse|Storlek) : .*$| - [A-Za-z0-9/\-]+ - .*$',
+    ' : Color - .*$| - Color : .*$| - Farve : .*$| - Färg : .*$| - Colour : .*$',
     ''
-  )                                                   AS core_product,
-  COALESCE(p.product_group_name, 'Other')            AS product_category,
-  COALESCE(p.unit_name, 'pcs')                       AS unit_of_measure,
+  )                                                   AS core_product_economic,
 
-  -- ==== LINE TYPE CLASSIFICATION ====
+  COALESCE(p.product_group_name, 'Other')            AS product_category_economic,
+
+  -- ==== PRODUCT MASTER DATA (FROM PRESTASHOP) ====
+  -- Category with special handling for adjustment items
   CASE
-    WHEN il.sku = 'rabat' THEN 'RABAT'
-    WHEN il.sku = 'fragtmm' OR il.sku LIKE 'fragt%' THEN 'FRAGT'
-    WHEN LOWER(COALESCE(p.product_group_name, il.line_description)) LIKE '%ydelse%' THEN 'YDELSE'
-    WHEN LOWER(COALESCE(p.product_group_name, il.line_description)) LIKE '%service%' THEN 'YDELSE'
-    WHEN LOWER(COALESCE(p.product_group_name, il.line_description)) LIKE '%vare%' THEN 'VARE'
-    WHEN il.line_net_amount < 0 THEN 'RABAT'
-    ELSE 'VARE'
-  END                                                 AS line_type,
+    WHEN il.sku IN ('rabat', 'fragtum', 'fragtmm', 'diff', 'diverse') THEN 'Adjustments'
+    WHEN ps.category_name IS NOT NULL THEN ps.category_name
+    ELSE 'Uncategorized'
+  END                                                 AS category,
+
+  ps.parent_category_id                               AS parent_category_id,
+  ps.category_level                                   AS category_level,
+  ps.size                                             AS size,
+  ps.color                                            AS color,
+  ps.ean13                                            AS ean13,
+  ps.stock_quantity                                   AS prestashop_stock_qty,
+
+  -- ==== PRODUCT MATCHING STATUS ====
+  CASE
+    WHEN il.sku IN ('rabat', 'fragtum', 'fragtmm', 'diff', 'diverse') THEN 'Adjustment Item'
+    WHEN ps.sku IS NOT NULL THEN 'Matched'
+    ELSE 'Not in PrestaShop'
+  END                                                 AS prestashop_match_status,
 
   -- ==== GEOGRAPHY ====
   COALESCE(
-    il.delivery_country,
-    il.recipient_country,
+    inv.delivery_country,
+    inv.recipient_country,
     'Unknown'
   )                                                   AS delivery_country,
   CASE
-    WHEN COALESCE(il.delivery_country, il.recipient_country) IN ('Danmark', 'Denmark')
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Danmark', 'Denmark')
     THEN 'National'
     ELSE 'International'
   END                                                 AS market,
 
   -- ==== CURRENCY INFO ====
-  il.invoice_currency                                 AS invoice_currency,
-  il.exchange_rate                                    AS exchange_rate,
+  inv.invoice_currency                                AS invoice_currency,
+  inv.exchange_rate                                   AS exchange_rate,
 
   -- ==== SALES METRICS (BASE CURRENCY - DKK) ====
   il.quantity                                         AS quantity_sold,
-  il.unit_net_price_base_currency                    AS unit_price_dkk,
-  il.line_net_amount_base_currency                   AS line_revenue_dkk,  -- Total line revenue (includes everything)
+  il.unit_net_price_base_currency                     AS unit_price_dkk,
+  il.line_net_amount_base_currency                    AS line_revenue_dkk,
 
-  -- ==== REVENUE BREAKDOWN (for detailed sales analysis) ====
-  -- These sum up to line_revenue_dkk
+  -- ==== REVENUE BREAKDOWN ====
+  -- Product revenue excludes adjustment lines (rabat, freight, etc.)
   CASE
-    WHEN line_type = 'VARE' THEN il.line_net_amount_base_currency
-    ELSE 0
+    WHEN il.sku IN ('rabat', 'fragtmm', 'fragtum') OR il.sku LIKE 'fragt%' THEN 0
+    WHEN il.line_net_amount_base_currency < 0 THEN 0  -- Negative adjustments
+    ELSE il.line_net_amount_base_currency
   END                                                 AS product_revenue_dkk,
-
-  CASE
-    WHEN line_type = 'FRAGT' THEN il.line_net_amount_base_currency
-    ELSE 0
-  END                                                 AS freight_revenue_dkk,
-
-  CASE
-    WHEN line_type = 'RABAT' THEN il.line_net_amount_base_currency
-    ELSE 0
-  END                                                 AS discount_amount_dkk,
-
-  CASE
-    WHEN line_type = 'YDELSE' THEN il.line_net_amount_base_currency
-    ELSE 0
-  END                                                 AS service_revenue_dkk,
 
   -- ==== COST & PROFIT (BASE CURRENCY - DKK) ====
   COALESCE(il.unit_cost_price_base_currency, 0)      AS unit_cost_dkk,
   COALESCE(il.unit_cost_price_base_currency, 0) * il.quantity AS line_cost_dkk,
   il.line_net_amount_base_currency -
-    (COALESCE(il.unit_cost_price_base_currency, 0) * il.quantity) AS line_profit_dkk,
-  ROUND(
-    CASE
-      WHEN il.line_net_amount_base_currency <> 0
-      THEN ((il.line_net_amount_base_currency - (COALESCE(il.unit_cost_price_base_currency, 0) * il.quantity))
-            / il.line_net_amount_base_currency) * 100
-      ELSE 0
-    END, 2
-  )                                                   AS profit_margin_percent
+    (COALESCE(il.unit_cost_price_base_currency, 0) * il.quantity) AS line_profit_dkk
 
 FROM BRONZE.INVOICE_LINES il
+-- NEW: Join with INVOICES to get header-level fields (date, customer, delivery, currency)
+LEFT JOIN BRONZE.INVOICES inv
+  ON il.invoice_number = inv.invoice_number
 LEFT JOIN BRONZE.CUSTOMERS c
-  ON il.customer_number = c.customer_number
+  ON inv.customer_number = c.customer_number
 LEFT JOIN BRONZE.PRODUCTS p
   ON il.sku = p.sku
-WHERE il.invoice_date IS NOT NULL;
+-- Join with PrestaShop SKU dimension (enriched with fallback for pre-2024 data)
+LEFT JOIN BRONZE.DIM_PRODUCT_SKU_ENRICHED ps
+  ON il.sku = ps.sku
+WHERE inv.invoice_date IS NOT NULL;  -- Only include lines with valid invoice dates
 
 COMMENT ON VIEW VW_SALES_DETAIL IS
-'Sales detail - one row per invoice line (51k+ rows). NO aggregation.
-Use for: Product analysis, customer behavior, country performance, margin analysis.
-CURRENCY: All monetary amounts in DKK (base currency) - multi-currency invoices converted using exchange_rate.
-REVENUE BREAKDOWN: line_revenue_dkk = product_revenue_dkk + freight_revenue_dkk + discount_amount_dkk + service_revenue_dkk
-NOTE: Only sale_date included - Tableau automatically creates Year/Quarter/Month hierarchies.';
+'Sales detail - one row per invoice line. NO aggregation.
+ENHANCED: Includes PrestaShop product master data (category, size, color, EAN13) via direct SKU join.
+PRODUCT NAME: Uses PrestaShop name for matched SKUs, falls back to Economic for unmatched items.
+CATEGORY LOGIC:
+  - Matched SKUs → PrestaShop category
+  - Adjustment items (rabat, fragtum, fragtmm, diff, diverse) → "Adjustments"
+  - Others → "Uncategorized"
+Uses bulk endpoints for performance (~55 API calls vs 100,000+).
+Data sources: INVOICE_LINES (bulk) + INVOICES (headers) + CUSTOMERS + PRODUCTS + PrestaShop.
+CURRENCY: All monetary amounts in DKK (base currency).';
 
 
 -- ============================================================
--- VIEW 2: CUSTOMER MASTER
+-- VIEW 2: CUSTOMER MASTER (UNCHANGED)
 -- One row per customer
 -- ============================================================
 CREATE OR REPLACE VIEW VW_CUSTOMER_MASTER AS
@@ -175,11 +189,68 @@ Use for: Customer lookups, segmentation, contact info.';
 
 
 -- ============================================================
+-- VIEW 3: PRODUCT MASTER (FROM PRESTASHOP)
+-- One row per SKU with complete product hierarchy
+-- ============================================================
+CREATE OR REPLACE VIEW VW_PRODUCT_MASTER AS
+SELECT
+  -- ==== SKU IDENTIFIER ====
+  sku                                                 AS product_sku,
+  combination_id                                      AS variant_id,
+  product_id                                          AS parent_product_id,
+
+  -- ==== PRODUCT INFO ====
+  product_name                                        AS product_name,
+  product_active                                      AS is_active,
+
+  -- ==== CATEGORY HIERARCHY ====
+  category_id                                         AS category_id,
+  category_name                                       AS category_name,
+  parent_category_id                                  AS parent_category_id,
+  category_level                                      AS category_level,
+
+  -- ==== VARIANT ATTRIBUTES ====
+  size                                                AS size,
+  color                                               AS color,
+  all_attributes                                      AS all_attributes_text,
+
+  -- ==== IDENTIFIERS ====
+  ean13                                               AS ean13,
+
+  -- ==== PRICING & STOCK ====
+  price_impact                                        AS price_impact,
+  stock_quantity                                      AS stock_quantity,
+
+  -- ==== METADATA ====
+  last_updated                                        AS last_updated_date,
+  dim_created_at                                      AS dim_created_timestamp
+
+FROM BRONZE.DIM_PRODUCT_SKU_ENRICHED;
+
+COMMENT ON VIEW VW_PRODUCT_MASTER IS
+'Product master data from PrestaShop (enriched with pre-2024 Economic data) - one row per SKU/variant.
+Includes complete product hierarchy: category, size, color, EAN13.
+Includes ALL SKUs from invoice lines with fallback to Economic product names for pre-2024 data.
+Use for: Product lookups, category analysis, inventory views.';
+
+
+-- ============================================================
 -- GRANTS
 -- ============================================================
-GRANT SELECT ON VIEW VW_SALES_DETAIL TO ROLE PLAYGROUND_ADMIN;
-GRANT SELECT ON VIEW VW_FINANCIAL_DETAIL TO ROLE PLAYGROUND_ADMIN;
-GRANT SELECT ON VIEW VW_CUSTOMER_MASTER TO ROLE PLAYGROUND_ADMIN;
+-- ECONOMIC_ADMIN: Full access to all Silver views
+GRANT SELECT ON VIEW VW_SALES_DETAIL TO ROLE ECONOMIC_ADMIN;
+GRANT SELECT ON VIEW VW_CUSTOMER_MASTER TO ROLE ECONOMIC_ADMIN;
+GRANT SELECT ON VIEW VW_PRODUCT_MASTER TO ROLE ECONOMIC_ADMIN;
+
+-- ECONOMIC_WRITE: Read access for data engineers
+GRANT SELECT ON VIEW VW_SALES_DETAIL TO ROLE ECONOMIC_WRITE;
+GRANT SELECT ON VIEW VW_CUSTOMER_MASTER TO ROLE ECONOMIC_WRITE;
+GRANT SELECT ON VIEW VW_PRODUCT_MASTER TO ROLE ECONOMIC_WRITE;
+
+-- ECONOMIC_READ: Read access for analysts and BI tools
+GRANT SELECT ON VIEW VW_SALES_DETAIL TO ROLE ECONOMIC_READ;
+GRANT SELECT ON VIEW VW_CUSTOMER_MASTER TO ROLE ECONOMIC_READ;
+GRANT SELECT ON VIEW VW_PRODUCT_MASTER TO ROLE ECONOMIC_READ;
 
 
 -- ============================================================
@@ -187,123 +258,99 @@ GRANT SELECT ON VIEW VW_CUSTOMER_MASTER TO ROLE PLAYGROUND_ADMIN;
 -- ============================================================
 
 -- Row counts
-SELECT 'VW_SALES_DETAIL' AS view_name, COUNT(*) AS row_count FROM VW_SALES_DETAIL
-UNION ALL
-SELECT 'VW_FINANCIAL_DETAIL', COUNT(*) FROM VW_FINANCIAL_DETAIL
-UNION ALL
-SELECT 'VW_CUSTOMER_MASTER', COUNT(*) FROM VW_CUSTOMER_MASTER;
+-- SELECT 'VW_SALES_DETAIL' AS view_name, COUNT(*) AS row_count FROM VW_SALES_DETAIL
+-- UNION ALL
+-- SELECT 'VW_CUSTOMER_MASTER', COUNT(*) FROM VW_CUSTOMER_MASTER
+-- UNION ALL
+-- SELECT 'VW_PRODUCT_MASTER', COUNT(*) FROM VW_PRODUCT_MASTER;
 
--- Sample data
-SELECT * FROM VW_SALES_DETAIL LIMIT 10;
-SELECT * FROM VW_FINANCIAL_DETAIL LIMIT 10;
-SELECT * FROM VW_CUSTOMER_MASTER LIMIT 10;
+-- Check all columns
+-- SELECT
+--   invoice_id,
+--   line_id,
+--   sale_date,
+--   customer_id,
+--   customer_name,
+--   customer_city,
+--   customer_country,
+--   customer_segment,
+--   product_sku,
+--   product_name,  -- Unified name (PrestaShop → Economic fallback)
+--   core_product_economic,
+--   product_category_economic,
+--   -- PrestaShop columns
+--   category,
+--   size,
+--   color,
+--   ean13,
+--   prestashop_match_status,
+--   -- Geography
+--   delivery_country,
+--   market,
+--   -- Currency
+--   invoice_currency,
+--   exchange_rate,
+--   -- Sales metrics
+--   quantity_sold,
+--   unit_price_dkk,
+--   line_revenue_dkk,
+--   product_revenue_dkk,
+--   -- Cost & profit
+--   unit_cost_dkk,
+--   line_cost_dkk,
+--   line_profit_dkk
+-- FROM VW_SALES_DETAIL
+-- LIMIT 10;
 
+-- Check PrestaShop match rate
+-- SELECT
+--   prestashop_match_status,
+--   COUNT(*) AS line_count,
+--   SUM(line_revenue_dkk) AS revenue_dkk,
+--   ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) AS pct_of_lines,
+--   ROUND(SUM(line_revenue_dkk) * 100.0 / SUM(SUM(line_revenue_dkk)) OVER (), 2) AS pct_of_revenue
+-- FROM VW_SALES_DETAIL
+-- GROUP BY prestashop_match_status;
+
+-- Revenue by category (new capability!)
+-- SELECT
+--   category,
+--   COUNT(DISTINCT product_sku) AS sku_count,
+--   SUM(quantity_sold) AS units_sold,
+--   SUM(line_revenue_dkk) AS revenue_dkk,
+--   SUM(line_profit_dkk) AS profit_dkk,
+--   ROUND(SUM(line_profit_dkk) / NULLIF(SUM(line_revenue_dkk), 0) * 100, 2) AS margin_pct
+-- FROM VW_SALES_DETAIL
+-- WHERE prestashop_match_status = 'Matched'
+--   AND product_revenue_dkk > 0  -- Exclude discounts/freight
+-- GROUP BY category
+-- ORDER BY revenue_dkk DESC;
+
+-- Revenue by size and color (new capability!)
+-- SELECT
+--   size,
+--   color,
+--   COUNT(*) AS line_count,
+--   SUM(quantity_sold) AS units_sold,
+--   SUM(line_revenue_dkk) AS revenue_dkk
+-- FROM VW_SALES_DETAIL
+-- WHERE prestashop_match_status = 'Matched'
+--   AND product_revenue_dkk > 0
+-- GROUP BY size, color
+-- ORDER BY revenue_dkk DESC
+-- LIMIT 20;
+
+-- Check for any NULL invoice_dates (data quality)
+-- SELECT COUNT(*) AS lines_without_date
+-- FROM BRONZE.INVOICE_LINES il
+-- LEFT JOIN BRONZE.INVOICES inv ON il.invoice_number = inv.invoice_number
+-- WHERE inv.invoice_date IS NULL;
 
 /*---------------------------------------------------------------*/
-/*** USAGE EXAMPLES                                            ***/
+/*** END OF FILE 09 - Silver Views                            ***/
 /*---------------------------------------------------------------*/
 
-/*
 
-EXAMPLE ANALYSES (for BI tools):
----------------------------------
 
-NOTE: All monetary values are in DKK (base currency) for accurate analysis
 
-1. Revenue by Country (DKK):
-   SELECT delivery_country, SUM(line_revenue_dkk) AS revenue_dkk
-   FROM VW_SALES_DETAIL
-   GROUP BY delivery_country
-   ORDER BY revenue_dkk DESC;
 
-2. Top Products by Revenue (DKK):
-   SELECT product_name,
-          SUM(quantity_sold) AS units_sold,
-          SUM(line_revenue_dkk) AS revenue_dkk
-   FROM VW_SALES_DETAIL
-   GROUP BY product_name
-   ORDER BY revenue_dkk DESC
-   LIMIT 10;
-
-3. Monthly Revenue Trend (DKK):
-   SELECT DATE_TRUNC('month', sale_date) AS month,
-          SUM(line_revenue_dkk) AS revenue_dkk
-   FROM VW_SALES_DETAIL
-   GROUP BY DATE_TRUNC('month', sale_date)
-   ORDER BY month;
-
-4. B2B vs B2C Revenue & Profit (DKK):
-   SELECT customer_segment,
-          COUNT(DISTINCT customer_id) AS customer_count,
-          SUM(line_revenue_dkk) AS revenue_dkk,
-          SUM(line_profit_dkk) AS profit_dkk,
-          AVG(profit_margin_percent) AS avg_margin_pct
-   FROM VW_SALES_DETAIL
-   GROUP BY customer_segment;
-
-5. Profit Margin by Product Category (DKK):
-   SELECT product_category,
-          SUM(line_revenue_dkk) AS revenue_dkk,
-          SUM(line_profit_dkk) AS profit_dkk,
-          (SUM(line_profit_dkk) / NULLIF(SUM(line_revenue_dkk), 0)) * 100 AS margin_pct
-   FROM VW_SALES_DETAIL
-   GROUP BY product_category
-   ORDER BY revenue_dkk DESC;
-
-6. National vs International Sales (DKK):
-   SELECT market,
-          COUNT(DISTINCT invoice_id) AS invoice_count,
-          SUM(line_revenue_dkk) AS revenue_dkk,
-          SUM(line_profit_dkk) AS profit_dkk
-   FROM VW_SALES_DETAIL
-   GROUP BY market;
-
-7. Multi-Currency Invoice Analysis:
-   SELECT invoice_currency,
-          COUNT(DISTINCT invoice_id) AS invoice_count,
-          AVG(exchange_rate) AS avg_exchange_rate,
-          SUM(line_revenue_dkk) AS total_revenue_dkk
-   FROM VW_SALES_DETAIL
-   GROUP BY invoice_currency
-   ORDER BY total_revenue_dkk DESC;
-
-8. Line Type Distribution (DKK):
-   SELECT line_type,
-          COUNT(*) AS line_count,
-          SUM(line_revenue_dkk) AS revenue_dkk,
-          AVG(profit_margin_percent) AS avg_margin_pct
-   FROM VW_SALES_DETAIL
-   GROUP BY line_type
-   ORDER BY revenue_dkk DESC;
-
-9. Pure Product Sales vs Total Invoice Value:
-   SELECT
-          SUM(product_revenue_dkk) AS product_sales_dkk,      -- Only VARE
-          SUM(freight_revenue_dkk) AS freight_charges_dkk,     -- Only FRAGT
-          SUM(discount_amount_dkk) AS total_discounts_dkk,     -- Only RABAT (negative)
-          SUM(service_revenue_dkk) AS service_revenue_dkk,     -- Only YDELSE
-          SUM(line_revenue_dkk) AS total_invoice_value_dkk,    -- Everything
-          -- Verification: should equal total_invoice_value_dkk
-          SUM(product_revenue_dkk + freight_revenue_dkk + discount_amount_dkk + service_revenue_dkk) AS breakdown_sum_dkk
-   FROM VW_SALES_DETAIL
-   WHERE sale_date >= '2024-01-01';
-
-10. Product Sales by Country (excluding freight/discounts):
-    SELECT delivery_country,
-           SUM(product_revenue_dkk) AS product_sales_dkk,     -- Pure product sales
-           SUM(line_revenue_dkk) AS total_revenue_dkk,         -- Includes freight/discounts
-           SUM(freight_revenue_dkk) AS freight_dkk,
-           SUM(discount_amount_dkk) AS discounts_dkk
-    FROM VW_SALES_DETAIL
-    GROUP BY delivery_country
-    ORDER BY product_sales_dkk DESC;
-
-11. Average Discount % by Customer Segment:
-    SELECT customer_segment,
-           SUM(product_revenue_dkk) AS gross_product_sales_dkk,
-           SUM(discount_amount_dkk) AS total_discounts_dkk,
-           (SUM(discount_amount_dkk) / NULLIF(SUM(product_revenue_dkk), 0)) * 100 AS avg_discount_percent
-    FROM VW_SALES_DETAIL
-    GROUP BY customer_segment;
-
-*/
