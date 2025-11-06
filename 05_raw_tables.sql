@@ -81,6 +81,23 @@ COMMENT = 'Raw JSON data from Economic OpenAPI endpoints (items array structure)
 -- Add clustering key
 ALTER TABLE ECONOMIC_OPENAPI_JSON CLUSTER BY (API_ENDPOINT, DATE_INSERTED);
 
+
+/*******************************************************************************
+ * TABLE 3: PRESTA_RESTAPI_JSON
+ *
+ * Stores raw JSON responses from Presta API endpoints.
+ ******************************************************************************/
+
+CREATE OR REPLACE TABLE PRESTA_RESTAPI_JSON (
+  DATE_INSERTED            TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+  API_ENDPOINT             STRING,     -- e.g. 'products', 'combinations', 'categories', 'product_option_values'
+  PAGE_NUMBER              NUMBER,
+  RECORD_COUNT_PER_PAGE    NUMBER,
+  COLLECTION_JSON          VARIANT NOT NULL
+);
+
+COMMENT ON TABLE PRESTA_RESTAPI_JSON IS 'Raw JSON data from PrestaShop REST API endpoints - contains product master data including combinations (variants/SKU), categories, and option values';
+
 /*******************************************************************************
  * GRANT PERMISSIONS
  *
@@ -91,10 +108,12 @@ ALTER TABLE ECONOMIC_OPENAPI_JSON CLUSTER BY (API_ENDPOINT, DATE_INSERTED);
 -- ECONOMIC_ADMIN: Full access
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLE ECONOMIC_RESTAPI_JSON TO ROLE ECONOMIC_ADMIN;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLE ECONOMIC_OPENAPI_JSON TO ROLE ECONOMIC_ADMIN;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLE PRESTA_RESTAPI_JSON TO ROLE ECONOMIC_ADMIN;
 
 -- ECONOMIC_WRITE: Can write and truncate (for data engineers)
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLE ECONOMIC_RESTAPI_JSON TO ROLE ECONOMIC_WRITE;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLE ECONOMIC_OPENAPI_JSON TO ROLE ECONOMIC_WRITE;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLE PRESTA_RESTAPI_JSON TO ROLE ECONOMIC_WRITE;
 
 -- ECONOMIC_READ: No direct access to RAW (they use Bronze/Silver views)
 -- Intentionally not granting access to RAW tables for read-only users
@@ -109,6 +128,7 @@ SHOW TABLES IN SCHEMA ECONOMIC.RAW;
 -- Check table structure
 -- DESC TABLE ECONOMIC_RESTAPI_JSON;
 -- DESC TABLE ECONOMIC_OPENAPI_JSON;
+-- DESC TABLE PRESTA_RESTAPI_JSON;
 
 -- Check clustering
 -- SHOW TABLES LIKE 'ECONOMIC%' IN SCHEMA RAW;
@@ -135,22 +155,19 @@ SHOW TABLES IN SCHEMA ECONOMIC.RAW;
  ******************************************************************************/
 
 -- These tables are populated by:
--- - UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY() procedure (file 06)
--- - UTIL.ECONOMIC_OPENAPI_DATAINGEST_MONTHLY() procedure (file 07)
+-- - UTIL.ECONOMIC_RESTAPI_DATAINGEST() procedure (file 06)
+-- - UTIL.ECONOMIC_OPENAPI_DATAINGEST() procedure (file 07)
+-- UTIL.PRESTA_RESTAPI_DATAINGEST() procedure (file 08)
 
 -- Truncate Pattern:
 -- Ingestion procedures truncate these tables before loading to ensure
 -- clean full refresh each time. Modify procedures for incremental loads.
 
--- Data Retention:
--- Consider implementing Time Travel or archival strategy:
--- - Time Travel: Access historical data for up to 90 days
--- - Archival: Clone tables before truncate for historical analysis
 
 -- Example: Create archive before loading
 -- CREATE TABLE RAW.ECONOMIC_RESTAPI_JSON_ARCHIVE_20250129
 --   CLONE RAW.ECONOMIC_RESTAPI_JSON;
--- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY();
+-- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST();
 
 -- Storage Optimization:
 -- VARIANT columns are stored efficiently in Snowflake.
@@ -180,9 +197,6 @@ SHOW TABLES IN SCHEMA ECONOMIC.RAW;
 --   AND TABLE_NAME LIKE 'ECONOMIC%'
 -- ORDER BY BYTES DESC;
 
--- Check clustering effectiveness
--- SELECT SYSTEM$CLUSTERING_INFORMATION('ECONOMIC_RESTAPI_JSON');
-
 -- View sample data
 -- SELECT
 --     DATE_INSERTED,
@@ -209,23 +223,6 @@ SHOW TABLES IN SCHEMA ECONOMIC.RAW;
 -- GROUP BY API_ENDPOINT
 -- ORDER BY TOTAL_RECORDS DESC;
 
-/*******************************************************************************
- * MAINTENANCE OPERATIONS
- ******************************************************************************/
-
--- Truncate tables (use with caution!)
--- TRUNCATE TABLE ECONOMIC_RESTAPI_JSON;
--- TRUNCATE TABLE ECONOMIC_OPENAPI_JSON;
-
--- Archive before truncate
--- CREATE TABLE RAW.ECONOMIC_RESTAPI_JSON_ARCHIVE_YYYYMMDD
---   CLONE RAW.ECONOMIC_RESTAPI_JSON;
-
--- Drop archived tables after retention period
--- DROP TABLE IF EXISTS RAW.ECONOMIC_RESTAPI_JSON_ARCHIVE_20241201;
-
--- Rebuild clustering (usually automatic, but can be manual)
--- ALTER TABLE ECONOMIC_RESTAPI_JSON RECLUSTER;
 
 /*******************************************************************************
  * END OF FILE 05
