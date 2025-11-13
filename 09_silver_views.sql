@@ -63,9 +63,10 @@ SELECT
   COALESCE(p.product_group_name, 'Other')            AS product_category_economic,
 
   -- ==== PRODUCT MASTER DATA (FROM PRESTASHOP) ====
-  -- Category with special handling for adjustment items
+  -- Category with special handling for special items
   CASE
-    WHEN il.sku IN ('rabat', 'fragtum', 'fragtmm', 'diff', 'diverse') THEN 'Adjustments'
+    WHEN il.sku = 'Diverse' THEN 'B2B Wholesale'  -- Bulk mixed-product shipments to distributors
+    WHEN il.sku IN ('rabat', 'fragtum', 'fragtmm', 'diff') THEN 'Adjustments'
     WHEN ps.category_name IS NOT NULL THEN ps.category_name
     ELSE 'Uncategorized'
   END                                                 AS category,
@@ -79,19 +80,51 @@ SELECT
 
   -- ==== PRODUCT MATCHING STATUS ====
   CASE
-    WHEN il.sku IN ('rabat', 'fragtum', 'fragtmm', 'diff', 'diverse') THEN 'Adjustment Item'
+    WHEN il.sku = 'Diverse' THEN 'B2B Wholesale'
+    WHEN il.sku IN ('rabat', 'fragtum', 'fragtmm', 'diff') THEN 'Adjustment Item'
     WHEN ps.sku IS NOT NULL THEN 'Matched'
     ELSE 'Not in PrestaShop'
   END                                                 AS prestashop_match_status,
 
   -- ==== GEOGRAPHY ====
-  COALESCE(
-    inv.delivery_country,
-    inv.recipient_country,
-    'Unknown'
-  )                                                   AS delivery_country,
+  -- Standardize country names to merge variations
   CASE
-    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Danmark', 'Denmark')
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('United Kingdom', 'England', 'GB', 'Great Britain', 'UK')
+      THEN 'United Kingdom'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('JP', 'Japan')
+      THEN 'Japan'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Danmark', 'Denmark', 'DK')
+      THEN 'Denmark'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('SE', 'Sweden', 'Sverige')
+      THEN 'Sweden'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('NO', 'Norway', 'Norge')
+      THEN 'Norway'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('FR', 'France')
+      THEN 'France'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('BE', 'Belgium', 'Belgique', 'België')
+      THEN 'Belgium'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('FI', 'Finland', 'Suomi')
+      THEN 'Finland'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('DE', 'Germany', 'Deutschland')
+      THEN 'Germany'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('NL', 'Netherlands', 'Nederland', 'Holland')
+      THEN 'Netherlands'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('US', 'USA', 'United States', 'United States of America')
+      THEN 'United States'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('CH', 'Switzerland', 'Schweiz', 'Suisse')
+      THEN 'Switzerland'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('AT', 'Austria', 'Österreich')
+      THEN 'Austria'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('IT', 'Italy', 'Italia')
+      THEN 'Italy'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('ES', 'Spain', 'España')
+      THEN 'Spain'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('CN', 'China')
+      THEN 'China'
+    ELSE COALESCE(inv.delivery_country, inv.recipient_country, 'Unknown')
+  END                                                 AS delivery_country,
+  CASE
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Danmark', 'Denmark', 'DK')
     THEN 'National'
     ELSE 'International'
   END                                                 AS market,
@@ -117,7 +150,10 @@ SELECT
   COALESCE(il.unit_cost_price_base_currency, 0)      AS unit_cost_dkk,
   COALESCE(il.unit_cost_price_base_currency, 0) * il.quantity AS line_cost_dkk,
   il.line_net_amount_base_currency -
-    (COALESCE(il.unit_cost_price_base_currency, 0) * il.quantity) AS line_profit_dkk
+    (COALESCE(il.unit_cost_price_base_currency, 0) * il.quantity) AS line_profit_dkk,
+
+  -- ==== DATA FRESHNESS METADATA ====
+  il.api_timestamp                                    AS data_last_refreshed
 
 FROM BRONZE.INVOICE_LINES il
 -- NEW: Join with INVOICES to get header-level fields (date, customer, delivery, currency)

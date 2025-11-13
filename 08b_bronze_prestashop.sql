@@ -27,6 +27,7 @@ USE SCHEMA BRONZE;
 /*---------------------------------------------------------------*/
 
 CREATE OR REPLACE VIEW PRESTA_PRODUCTS AS
+-- Active PrestaShop products
 SELECT
   r.DATE_INSERTED                                     AS api_timestamp,
   -- Core product info
@@ -45,9 +46,14 @@ SELECT
 
 FROM RAW.PRESTA_RESTAPI_JSON r,
      LATERAL FLATTEN(input => r.COLLECTION_JSON:"products") p
-WHERE r.API_ENDPOINT = 'products';
+WHERE r.API_ENDPOINT = 'products'
 
-COMMENT ON VIEW PRESTA_PRODUCTS IS 'PrestaShop products (parent level) - contains base product info and default category reference';
+UNION ALL
+
+-- Expired SKUs from Excel (synthetic products)
+SELECT * FROM PRESTA_PRODUCTS_EXPIRED;
+
+COMMENT ON VIEW PRESTA_PRODUCTS IS 'PrestaShop products (parent level) - contains base product info and default category reference. Includes expired SKUs from historical data.';
 
 
 /*---------------------------------------------------------------*/
@@ -55,6 +61,7 @@ COMMENT ON VIEW PRESTA_PRODUCTS IS 'PrestaShop products (parent level) - contain
 /*---------------------------------------------------------------*/
 
 CREATE OR REPLACE VIEW PRESTA_CATEGORIES AS
+-- Active PrestaShop categories
 SELECT
   r.DATE_INSERTED                                     AS api_timestamp,
   -- Core category info
@@ -68,9 +75,14 @@ SELECT
 
 FROM RAW.PRESTA_RESTAPI_JSON r,
      LATERAL FLATTEN(input => r.COLLECTION_JSON:"categories") c
-WHERE r.API_ENDPOINT = 'categories';
+WHERE r.API_ENDPOINT = 'categories'
 
-COMMENT ON VIEW PRESTA_CATEGORIES IS 'PrestaShop categories - hierarchical structure with parent_category_id for building product taxonomy';
+UNION ALL
+
+-- Expired SKU categories from Excel
+SELECT * FROM PRESTA_CATEGORIES_EXPIRED;
+
+COMMENT ON VIEW PRESTA_CATEGORIES IS 'PrestaShop categories - hierarchical structure with parent_category_id for building product taxonomy. Includes categories from expired SKUs.';
 
 
 /*---------------------------------------------------------------*/
@@ -78,6 +90,7 @@ COMMENT ON VIEW PRESTA_CATEGORIES IS 'PrestaShop categories - hierarchical struc
 /*---------------------------------------------------------------*/
 
 CREATE OR REPLACE VIEW PRESTA_COMBINATIONS AS
+-- Active PrestaShop combinations
 SELECT
   r.DATE_INSERTED                                     AS api_timestamp,
   -- Core combination info
@@ -96,9 +109,14 @@ SELECT
 
 FROM RAW.PRESTA_RESTAPI_JSON r,
      LATERAL FLATTEN(input => r.COLLECTION_JSON:"combinations") c
-WHERE r.API_ENDPOINT = 'combinations';
+WHERE r.API_ENDPOINT = 'combinations'
 
-COMMENT ON VIEW PRESTA_COMBINATIONS IS 'PrestaShop combinations (variant level) - contains SKU/reference field that joins to e-conomic invoice lines. This is the key linking table.';
+UNION ALL
+
+-- Expired SKUs from Excel (synthetic combinations)
+SELECT * FROM PRESTA_COMBINATIONS_EXPIRED;
+
+COMMENT ON VIEW PRESTA_COMBINATIONS IS 'PrestaShop combinations (variant level) - contains SKU/reference field that joins to e-conomic invoice lines. This is the key linking table. Includes expired SKUs from historical data.';
 
 
 /*---------------------------------------------------------------*/
@@ -109,6 +127,7 @@ COMMENT ON VIEW PRESTA_COMBINATIONS IS 'PrestaShop combinations (variant level) 
 -- This view flattens the associations array in combinations
 -- Each combination can have multiple option values (e.g., Size=M, Color=Blue)
 CREATE OR REPLACE VIEW PRESTA_COMBINATION_OPTIONS AS
+-- Active PrestaShop combination options
 SELECT
   r.DATE_INSERTED                                     AS api_timestamp,
   c.value:"id"::INT                                   AS combination_id,
@@ -116,9 +135,14 @@ SELECT
 FROM RAW.PRESTA_RESTAPI_JSON r,
      LATERAL FLATTEN(input => r.COLLECTION_JSON:"combinations") c,
      LATERAL FLATTEN(input => c.value:"associations"."product_option_values", OUTER => TRUE) opt
-WHERE r.API_ENDPOINT = 'combinations';
+WHERE r.API_ENDPOINT = 'combinations'
 
-COMMENT ON VIEW PRESTA_COMBINATION_OPTIONS IS 'Link table between combinations and option values - many-to-many relationship (e.g., combination 949 has option_value 9 (Size) and 27 (Color))';
+UNION ALL
+
+-- Expired SKU combination options from Excel
+SELECT * FROM PRESTA_COMBINATION_OPTIONS_EXPIRED;
+
+COMMENT ON VIEW PRESTA_COMBINATION_OPTIONS IS 'Link table between combinations and option values - many-to-many relationship (e.g., combination 949 has option_value 9 (Size) and 27 (Color)). Includes expired SKU mappings.';
 
 
 /*---------------------------------------------------------------*/
@@ -126,6 +150,7 @@ COMMENT ON VIEW PRESTA_COMBINATION_OPTIONS IS 'Link table between combinations a
 /*---------------------------------------------------------------*/
 
 CREATE OR REPLACE VIEW PRESTA_OPTION_VALUES AS
+-- Active PrestaShop option values
 SELECT
   r.DATE_INSERTED                                     AS api_timestamp,
   -- Core option value info
@@ -138,9 +163,14 @@ SELECT
 
 FROM RAW.PRESTA_RESTAPI_JSON r,
      LATERAL FLATTEN(input => r.COLLECTION_JSON:"product_option_values") ov
-WHERE r.API_ENDPOINT = 'product_option_values';
+WHERE r.API_ENDPOINT = 'product_option_values'
 
-COMMENT ON VIEW PRESTA_OPTION_VALUES IS 'PrestaShop option values - contains size/color names (e.g., "M", "Ocean Blue") linked by option_value_id';
+UNION ALL
+
+-- Expired SKU option values (sizes and colors) from Excel
+SELECT * FROM PRESTA_OPTION_VALUES_EXPIRED;
+
+COMMENT ON VIEW PRESTA_OPTION_VALUES IS 'PrestaShop option values - contains size/color names (e.g., "M", "Ocean Blue") linked by option_value_id. Includes sizes/colors from expired SKUs.';
 
 
 /*---------------------------------------------------------------*/
@@ -155,14 +185,44 @@ COMMENT ON VIEW PRESTA_OPTION_VALUES IS 'PrestaShop option values - contains siz
 
 CREATE OR REPLACE VIEW DIM_PRODUCT_SKU AS
 WITH
+-- Deduplicate combinations (keep most recent api_timestamp per combination_id)
+deduped_combinations AS (
+  SELECT *
+  FROM PRESTA_COMBINATIONS
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY combination_id ORDER BY api_timestamp DESC) = 1
+),
+-- Deduplicate products (keep most recent api_timestamp per product_id)
+deduped_products AS (
+  SELECT *
+  FROM PRESTA_PRODUCTS
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY api_timestamp DESC) = 1
+),
+-- Deduplicate categories (keep most recent api_timestamp per category_id)
+deduped_categories AS (
+  SELECT *
+  FROM PRESTA_CATEGORIES
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY api_timestamp DESC) = 1
+),
+-- Deduplicate option values (keep most recent api_timestamp per option_value_id)
+deduped_option_values AS (
+  SELECT *
+  FROM PRESTA_OPTION_VALUES
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY option_value_id ORDER BY api_timestamp DESC) = 1
+),
+-- Deduplicate combination options (keep most recent api_timestamp per combination_id + option_value_id)
+deduped_combination_options AS (
+  SELECT *
+  FROM PRESTA_COMBINATION_OPTIONS
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY combination_id, option_value_id ORDER BY api_timestamp DESC) = 1
+),
 -- Get size values (option_group_id = 1 typically for Size)
 sizes AS (
   SELECT
     co.combination_id,
     ov.option_value_name AS size_name,
     ov.option_group_id
-  FROM PRESTA_COMBINATION_OPTIONS co
-  JOIN PRESTA_OPTION_VALUES ov ON co.option_value_id = ov.option_value_id
+  FROM deduped_combination_options co
+  JOIN deduped_option_values ov ON co.option_value_id = ov.option_value_id
   WHERE ov.option_group_id = 1  -- Adjust this if needed based on your PrestaShop setup
 ),
 -- Get color values (option_group_id = 2 typically for Color)
@@ -171,8 +231,8 @@ colors AS (
     co.combination_id,
     ov.option_value_name AS color_name,
     ov.option_group_id
-  FROM PRESTA_COMBINATION_OPTIONS co
-  JOIN PRESTA_OPTION_VALUES ov ON co.option_value_id = ov.option_value_id
+  FROM deduped_combination_options co
+  JOIN deduped_option_values ov ON co.option_value_id = ov.option_value_id
   WHERE ov.option_group_id = 2  -- Adjust this if needed based on your PrestaShop setup
 ),
 -- Get all option values (for cases where option_group_id is not 1 or 2)
@@ -180,8 +240,8 @@ all_options AS (
   SELECT
     co.combination_id,
     LISTAGG(ov.option_value_name, ' / ') WITHIN GROUP (ORDER BY ov.option_group_id) AS all_options_text
-  FROM PRESTA_COMBINATION_OPTIONS co
-  JOIN PRESTA_OPTION_VALUES ov ON co.option_value_id = ov.option_value_id
+  FROM deduped_combination_options co
+  JOIN deduped_option_values ov ON co.option_value_id = ov.option_value_id
   GROUP BY co.combination_id
 )
 SELECT
@@ -217,11 +277,11 @@ SELECT
   p.date_updated                                      AS last_updated,
 
   -- Metadata
-  CURRENT_TIMESTAMP()                                 AS dim_created_at
+  TO_TIMESTAMP_NTZ('2024-01-01 00:00:00')             AS dim_created_at
 
-FROM PRESTA_COMBINATIONS c
-LEFT JOIN PRESTA_PRODUCTS p ON c.product_id = p.product_id
-LEFT JOIN PRESTA_CATEGORIES cat
+FROM deduped_combinations c
+LEFT JOIN deduped_products p ON c.product_id = p.product_id
+LEFT JOIN deduped_categories cat
   ON p.id_category_default = cat.category_id
   AND (cat.category_name_da != 'Shop' OR cat.category_name_da IS NULL)  -- Exclude "Shop" category, allow NULL
 LEFT JOIN sizes sz ON c.combination_id = sz.combination_id
@@ -293,11 +353,12 @@ SELECT
   CASE WHEN dim.sku IS NOT NULL THEN TRUE ELSE FALSE END AS has_prestashop_data,
 
   -- Timestamps
-  COALESCE(dim.last_updated, CURRENT_TIMESTAMP())     AS last_updated,
-  CURRENT_TIMESTAMP()                                 AS dim_created_at
+  COALESCE(dim.last_updated, TO_TIMESTAMP_NTZ('2024-01-01 00:00:00'))     AS last_updated,
+  TO_TIMESTAMP_NTZ('2024-01-01 00:00:00')                                 AS dim_created_at
 
 FROM all_invoice_skus inv
-LEFT JOIN DIM_PRODUCT_SKU dim ON inv.sku = dim.sku;
+LEFT JOIN DIM_PRODUCT_SKU dim ON inv.sku = dim.sku
+QUALIFY ROW_NUMBER() OVER (PARTITION BY inv.sku ORDER BY dim.combination_id DESC NULLS LAST) = 1;
 
 COMMENT ON VIEW DIM_PRODUCT_SKU_ENRICHED IS
 'Enriched SKU dimension with invoice line fallback - includes ALL SKUs from invoice lines.
