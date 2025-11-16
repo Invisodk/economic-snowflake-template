@@ -47,25 +47,56 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/01_network_secrets_
 EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/02_database_schema_roles_setup.sql;
 
 /*******************************************************************************
- * FILE 03: CONFIGURATION TABLES
+ * FILE 01B: PRESTASHOP NETWORK RULES & SECRETS SETUP
+ *
+ * Creates:
+ * - Network rule for PrestaShop API access
+ * - Secret for PrestaShop API authentication
+ * - External access integration for PrestaShop
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/01b_network_secrets_setup_presta.sql;
+
+/*******************************************************************************
+ * FILE 03: ECONOMIC CONFIGURATION TABLES
  *
  * Creates:
  * - CONFIG.ECONOMIC_ENDPOINTS table
  * - Populates with default Economic API endpoints
  ******************************************************************************/
 
-EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/03_config_tables.sql;
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/03_config_tables_economic.sql;
+
+/*******************************************************************************
+ * FILE 03B: PRESTASHOP CONFIGURATION TABLES
+ *
+ * Creates:
+ * - CONFIG.PRESTA_ENDPOINTS table
+ * - Populates with default PrestaShop API endpoints
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/03b_config_tables_presta.sql;
 
 /*******************************************************************************
  * FILE 04: ECONOMIC API UDF
  *
  * Creates:
- * - UTIL.ECONOMIC_API_V3 function
+ * - UTIL.ECONOMIC_API_RETRIEVER function
  * - Supports both REST and OpenAPI endpoints
  * - Enhanced error handling and demo mode
  ******************************************************************************/
 
-EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/04_udf_economic_api_v3.sql;
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/04_udf_economic_api_retriever.sql;
+
+/*******************************************************************************
+ * FILE 04B: PRESTASHOP API UDF
+ *
+ * Creates:
+ * - UTIL.PRESTA_API_RETRIEVER function
+ * - Handles PrestaShop API calls with XML parsing
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/04b_udf_presta_api_retriever.sql;
 
 /*******************************************************************************
  * FILE 05: RAW TABLES
@@ -88,6 +119,16 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/05_raw_tables.sql;
 EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/06_usp_rest_ingestion.sql;
 
 /*******************************************************************************
+ * FILE 06B: PRESTASHOP REST INGESTION PROCEDURE
+ *
+ * Creates:
+ * - UTIL.PRESTA_RESTAPI_DATAINGEST procedure
+ * - Ingests all active PrestaShop endpoints from config table
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/06b_presta_rest_ingestion.sql;
+
+/*******************************************************************************
  * FILE 07: OPENAPI INGESTION PROCEDURE
  *
  * Creates:
@@ -98,9 +139,9 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/06_usp_rest_ingesti
 EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/07_usp_openapi_ingestion.sql;
 
 /*******************************************************************************
- * FILE 08: BRONZE VIEWS
+ * FILE 08: BRONZE ECONOMIC VIEWS
  *
- * Creates 8 Bronze layer views with field extraction:
+ * Creates Bronze layer views with field extraction for e-conomic data:
  * - BRONZE.CUSTOMERS
  * - BRONZE.PRODUCTS
  * - BRONZE.INVOICES
@@ -111,7 +152,28 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/07_usp_openapi_inge
  * - BRONZE.ACCOUNTING_TOTALS
  ******************************************************************************/
 
-EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08_bronze_views.sql;
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08_bronze_economic.sql;
+
+/*******************************************************************************
+ * FILE 08B: BRONZE PRESTASHOP VIEWS
+ *
+ * Creates Bronze layer views with field extraction for PrestaShop data:
+ * - BRONZE.PRESTA_PRODUCTS
+ * - BRONZE.PRESTA_COMBINATIONS
+ * - Additional PrestaShop entities
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08b_bronze_prestashop.sql;
+
+/*******************************************************************************
+ * FILE 08C: EXPIRED SKU LOGIC
+ *
+ * Creates:
+ * - Logic to handle expired/inactive SKUs
+ * - Fallback views for unmatched products
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08c_expired_sku_logic.sql;
 
 /*******************************************************************************
  * FILE 09: SILVER VIEWS
@@ -135,6 +197,18 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/09_silver_views.sql
 EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/10_task_scheduling.sql;
 
 /*******************************************************************************
+ * FILE 11: CORTEX SEMANTIC MODEL SETUP (OPTIONAL)
+ *
+ * Creates:
+ * - Snowflake Cortex semantic model for AI-powered analytics
+ * - Enables natural language queries over your data
+ * - Note: This is optional and requires Cortex features to be enabled
+ ******************************************************************************/
+
+-- Uncomment to deploy Cortex semantic model
+-- EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/cortex_setup.sql;
+
+/*******************************************************************************
  * DEPLOYMENT COMPLETE!
  ******************************************************************************/
 
@@ -153,22 +227,37 @@ SELECT
 -- ALTER SECRET ECONOMIC_XAPIKEY_APPSECRET SET SECRET_STRING = 'your_actual_appsecret';
 -- ALTER SECRET ECONOMIC_XAPIKEY_AGREEMENTGRANT SET SECRET_STRING = 'your_actual_agreementgrant';
 
--- Step 2: Test API connection
+-- Step 2: Update PrestaShop API secrets with real credentials
+-- ALTER SECRET PRESTA_API_KEY SET SECRET_STRING = 'your_actual_prestashop_api_key';
+
+-- Step 3: Update network rules to point to your actual API endpoints
+-- ALTER NETWORK RULE PRESTA_APIS_NETWORK_RULE
+--   SET VALUE_LIST = ('your-prestashop-domain.com');
+
+-- Step 4: Test API connections
 -- USE ROLE ECONOMIC_ADMIN;
 -- USE DATABASE ECONOMIC;
--- SELECT UTIL.ECONOMIC_API_V3('customers', 'REST', 1000, 0);
+-- SELECT UTIL.ECONOMIC_API_RETRIEVER('customers', 'REST', 1000, 0);
+-- SELECT UTIL.PRESTA_API_RETRIEVER('products', 1000, 0);
 
--- Step 3: Run first ingestion
+-- Step 5: Run first data ingestion
 -- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY();
+-- CALL UTIL.ECONOMIC_OPENAPI_DATAINGEST_MONTHLY();
+-- CALL UTIL.PRESTA_RESTAPI_DATAINGEST();
 
--- Step 4: Verify data in Bronze layer
+-- Step 6: Verify data in Bronze layer (Economic)
 -- SELECT * FROM BRONZE.CUSTOMERS LIMIT 10;
 -- SELECT * FROM BRONZE.INVOICES LIMIT 10;
+-- SELECT * FROM BRONZE.PRODUCTS LIMIT 10;
 
--- Step 5: Verify data in Silver layer
+-- Step 7: Verify data in Bronze layer (PrestaShop)
+-- SELECT * FROM BRONZE.PRESTA_PRODUCTS LIMIT 10;
+-- SELECT * FROM BRONZE.PRESTA_COMBINATIONS LIMIT 10;
+
+-- Step 8: Verify data in Silver layer
 -- SELECT * FROM SILVER.VW_SALES_DETAIL LIMIT 10;
 
--- Step 6: Resume task for automated refresh (optional)
+-- Step 9: Resume task for automated refresh (optional)
 -- ALTER TASK ECONOMIC_DAILY_REFRESH RESUME;
 
 /*******************************************************************************

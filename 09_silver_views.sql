@@ -121,12 +121,55 @@ SELECT
       THEN 'Spain'
     WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('CN', 'China')
       THEN 'China'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('PL', 'Poland', 'Polska')
+      THEN 'Poland'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('LT', 'Lithuania', 'Lietuva')
+      THEN 'Lithuania'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('AU', 'Australia')
+      THEN 'Australia'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('EE', 'Estonia', 'Eesti')
+      THEN 'Estonia'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('SG', 'Singapore')
+      THEN 'Singapore'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('NZ', 'New Zealand')
+      THEN 'New Zealand'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('GR', 'Greece', 'Ελλάδα')
+      THEN 'Greece'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('LU', 'Luxembourg', 'Luxemburg', 'Lëtzebuerg')
+      THEN 'Luxembourg'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('PT', 'Portugal')
+      THEN 'Portugal'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('IS', 'Iceland', 'Ísland')
+      THEN 'Iceland'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('CA', 'Canada')
+      THEN 'Canada'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('HU', 'Hungary', 'Magyarország')
+      THEN 'Hungary'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('JE', 'Jersey')
+      THEN 'Jersey'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('IE', 'Ireland', 'Éire')
+      THEN 'Ireland'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('RO', 'Romania', 'România')
+      THEN 'Romania'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('BG', 'Bulgaria', 'България')
+      THEN 'Bulgaria'
     ELSE COALESCE(inv.delivery_country, inv.recipient_country, 'Unknown')
-  END                                                 AS delivery_country,
+  END                                              AS delivery_country,
+
   CASE
-    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Danmark', 'Denmark', 'DK')
-    THEN 'National'
-    ELSE 'International'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Denmark', 'Sweden', 'Norway', 'Finland', 'Iceland')
+      THEN 'Nordics'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('United Kingdom', 'Ireland', 'France', 'Belgium', 'Netherlands', 'Germany', 'Switzerland', 'Austria', 'Luxembourg', 'Jersey')
+      THEN 'Western Europe'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Spain', 'Portugal', 'Italy', 'Greece')
+      THEN 'Southern Europe'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Poland', 'Hungary', 'Romania', 'Bulgaria', 'Lithuania', 'Estonia')
+      THEN 'Central & Eastern Europe'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('United States', 'Canada')
+      THEN 'North America'
+    WHEN COALESCE(inv.delivery_country, inv.recipient_country) IN ('Japan', 'China', 'Singapore', 'Australia', 'New Zealand')
+      THEN 'Asia-Pacific'
+    ELSE 'Other'
   END                                                 AS market,
 
   -- ==== CURRENCY INFO ====
@@ -385,8 +428,3 @@ GRANT SELECT ON VIEW VW_PRODUCT_MASTER TO ROLE ECONOMIC_READ;
 /*---------------------------------------------------------------*/
 /*** END OF FILE 09 - Silver Views                            ***/
 /*---------------------------------------------------------------*/
-
-
-
-
-
