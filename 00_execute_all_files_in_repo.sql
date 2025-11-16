@@ -155,25 +155,30 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/07_usp_openapi_inge
 EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08_bronze_economic.sql;
 
 /*******************************************************************************
- * FILE 08B: BRONZE PRESTASHOP VIEWS
- *
- * Creates Bronze layer views with field extraction for PrestaShop data:
- * - BRONZE.PRESTA_PRODUCTS
- * - BRONZE.PRESTA_COMBINATIONS
- * - Additional PrestaShop entities
- ******************************************************************************/
-
-EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08b_bronze_prestashop.sql;
-
-/*******************************************************************************
- * FILE 08C: EXPIRED SKU LOGIC
+ * FILE 08B: EXPIRED SKU LOGIC
  *
  * Creates:
  * - Logic to handle expired/inactive SKUs
  * - Fallback views for unmatched products
+ *
+ * Note: Must run BEFORE 08c_bronze_prestashop because PrestaShop views
+ *       depend on the SKU matching logic defined here.
  ******************************************************************************/
 
-EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08c_expired_sku_logic.sql;
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08b_expired_sku_logic.sql;
+
+/*******************************************************************************
+ * FILE 08C: BRONZE PRESTASHOP VIEWS
+ *
+ * Creates Bronze layer views with field extraction for PrestaShop data:
+ * - BRONZE.PRESTA_PRODUCTS
+ * - BRONZE.PRESTA_COMBINATIONS
+ * - BRONZE.DIM_PRODUCT_SKU (master product dimension)
+ *
+ * Depends on: 08b_expired_sku_logic.sql
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/08c_bronze_prestashop.sql;
 
 /*******************************************************************************
  * FILE 09: SILVER VIEWS
