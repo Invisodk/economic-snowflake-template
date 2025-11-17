@@ -33,7 +33,7 @@ USE DATABASE ECONOMIC;
 USE SCHEMA UTIL;
 
 /*******************************************************************************
- * CREATE ECONOMIC API UDF V3
+ * CREATE ECONOMIC API UDF
  ******************************************************************************/
 
 CREATE OR REPLACE FUNCTION ECONOMIC_API_V2(
@@ -104,98 +104,11 @@ $$;
  * GRANT USAGE TO ROLES
  ******************************************************************************/
 
--- Grant to ECONOMIC_ADMIN
 GRANT USAGE ON FUNCTION ECONOMIC_API_V2(VARCHAR, STRING, INTEGER, INTEGER, VARCHAR)
   TO ROLE ECONOMIC_ADMIN;
 
--- Grant to ECONOMIC_WRITE (for data engineers running ingestion)
 GRANT USAGE ON FUNCTION ECONOMIC_API_V2(VARCHAR, STRING, INTEGER, INTEGER, VARCHAR)
   TO ROLE ECONOMIC_WRITE;
-
-/*******************************************************************************
- * VERIFICATION & TESTING
- ******************************************************************************/
-
--- Test with demo mode (if secrets are set to 'demo')
--- SELECT UTIL.ECONOMIC_API_V2('customers', 'REST', 10, 0);
-
--- Test specific endpoint
--- SELECT UTIL.ECONOMIC_API_V2('products', 'REST', 100, 0);
-
--- Test OpenAPI endpoint
--- SELECT UTIL.ECONOMIC_API_V2('journalsapi/v1.0.0/entries/booked', 'OPENAPI', 50, 0);
-
--- Test pagination (page 2)
--- SELECT UTIL.ECONOMIC_API_V2('invoices/booked', 'REST', 1000, 1);
-
-/*******************************************************************************
- * USAGE NOTES
- ******************************************************************************/
-
--- Demo Mode Testing:
--- If your secrets are set to 'demo', the UDF automatically appends &demo=true
--- to the URL. This allows testing without production credentials.
-
--- Pagination:
--- Economic API uses skip-based pagination:
--- - STARTPAGE=0, PAGESIZE=1000: Records 1-1000
--- - STARTPAGE=1, PAGESIZE=1000: Records 1001-2000
--- - STARTPAGE=2, PAGESIZE=1000: Records 2001-3000
-
--- Performance:
--- - Recommended PAGESIZE: 500-1000 (balance between API calls and memory)
--- - HTTP compression (gzip) reduces transfer time by ~70%
--- - 30-second timeout prevents hanging on slow responses
-
--- Error Handling:
--- If the UDF fails, check:
--- 1. Secrets are set correctly (last 4 chars shown in error)
--- 2. Network rule allows egress to Economic API
--- 3. External access integration is granted to your role
--- 4. Endpoint path is correct (check Economic API docs)
-
--- Common Error Codes:
--- - 401 Unauthorized: Invalid API tokens
--- - 403 Forbidden: Tokens valid but no access to resource
--- - 404 Not Found: Invalid endpoint path
--- - 429 Too Many Requests: Rate limit exceeded
--- - 500 Internal Server Error: Economic API issue
-
-/*******************************************************************************
- * TROUBLESHOOTING
- ******************************************************************************/
-
--- Check if function exists
--- SHOW FUNCTIONS LIKE 'ECONOMIC_API_V2' IN SCHEMA UTIL;
-
--- Check grants
--- SHOW GRANTS ON FUNCTION ECONOMIC_API_V2(VARCHAR, STRING, INTEGER, INTEGER);
-
--- Test with minimal call
--- SELECT UTIL.ECONOMIC_API_V2('customers', 'REST', 1, 0);
-
--- Parse response to see structure
--- SELECT
---     f.value:customerNumber::NUMBER AS customer_number,
---     f.value:name::STRING AS customer_name
--- FROM TABLE(
---     FLATTEN(
---         input => (SELECT UTIL.ECONOMIC_API_V2('customers', 'REST', 10, 0):collection)
---     )
--- ) f
--- LIMIT 10;
-
-/*******************************************************************************
- * FUTURE ENHANCEMENTS (V4 Ideas)
- ******************************************************************************/
-
--- Potential improvements for future versions:
--- - Automatic retry logic with exponential backoff
--- - Rate limit handling (429 responses)
--- - Multi-country support (COUNTRYCODE parameter)
--- - Caching layer to reduce API calls
--- - Request/response logging for auditing
--- - Support for POST/PUT/DELETE (currently GET only)
 
 /*******************************************************************************
  * END OF FILE 04

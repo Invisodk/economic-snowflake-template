@@ -17,7 +17,7 @@
  * 1. X-AppSecretToken       - Application secret
  * 2. X-AgreementGrantToken  - Agreement grant token
  *
- * ⚠️ IMPORTANT: After deployment, update secrets with actual credentials!
+ * IMPORTANT: After deployment, update secrets with actual credentials
  ******************************************************************************/
 
 USE ROLE ACCOUNTADMIN;

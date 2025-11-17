@@ -153,13 +153,13 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/00_execute_all_file
 -- ALTER SECRET ECONOMIC_XAPIKEY_AGREEMENTGRANT
 --   SET SECRET_STRING = 'your_actual_agreementgrant_here';
 
--- Test the API connection (use demo=true for testing without real credentials)
+-- Test the API connection (use demo=true if you want demo data for testing)
 -- USE ROLE ECONOMIC_ADMIN;
 -- USE DATABASE ECONOMIC;
 -- SELECT UTIL.ECONOMIC_API_V3('customers', 'REST', 1000, 0);
 
 -- Run first data ingestion
--- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY();
+-- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST();
 
 /*******************************************************************************
  * STEP 8: CLEANUP (OPTIONAL - SECURITY BEST PRACTICE)
@@ -196,47 +196,6 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/00_execute_all_file
 
 -- Check git repository fetch status
 -- SELECT SYSTEM$GIT_REPOSITORY_STATUS('ECONOMIC_TEMPLATE_REPO');
-
-/*******************************************************************************
- * DEPLOYMENT VERIFICATION CHECKLIST
- ******************************************************************************/
-
--- [ ] Database ECONOMIC created
--- [ ] Schemas created: CONFIG, UTIL, RAW, BRONZE, SILVER
--- [ ] Roles created: ECONOMIC_ADMIN, ECONOMIC_WRITE, ECONOMIC_READ
--- [ ] Network rule and secrets created
--- [ ] External access integration created
--- [ ] UDF ECONOMIC_API_V3 created
--- [ ] Ingestion procedures created
--- [ ] Config table populated with endpoints
--- [ ] RAW tables created
--- [ ] Bronze views created (8 views)
--- [ ] Silver views created (3 views)
--- [ ] Tasks created but not started (resume manually after testing)
-
--- Verify database structure
--- SHOW SCHEMAS IN DATABASE ECONOMIC;
--- SHOW ROLES LIKE 'ECONOMIC%';
--- SHOW VIEWS IN SCHEMA ECONOMIC.BRONZE;
--- SHOW VIEWS IN SCHEMA ECONOMIC.SILVER;
--- SHOW PROCEDURES IN SCHEMA ECONOMIC.UTIL;
--- SHOW FUNCTIONS IN SCHEMA ECONOMIC.UTIL;
-
-/*******************************************************************************
- * NEXT STEPS AFTER DEPLOYMENT
- ******************************************************************************/
-
--- 1. Update Economic API secrets with real credentials (see STEP 7 above)
--- 2. Test API connection with demo data
--- 3. Run initial data ingestion
--- 4. Verify data in Bronze views
--- 5. Verify data in Silver views
--- 6. Configure and resume scheduled tasks
--- 7. Grant appropriate roles to users:
---    - ECONOMIC_READ for analysts/BI tools
---    - ECONOMIC_WRITE for data engineers
---    - ECONOMIC_ADMIN for administrators
--- 8. Optional: Clean up Git objects (see STEP 8 above)
 
 /*******************************************************************************
  * END OF SCRIPT
