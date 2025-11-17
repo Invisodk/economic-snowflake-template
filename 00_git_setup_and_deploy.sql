@@ -24,7 +24,7 @@ USE ROLE ACCOUNTADMIN;
 /*******************************************************************************
  * STEP 0: CONFIGURATION
  *
- * ⚠️ UPDATE THESE VALUES FOR YOUR ENVIRONMENT ⚠️
+ * UPDATE THESE VALUES FOR YOUR ENVIRONMENT
  ******************************************************************************/
 
 -- Database and schema setup
@@ -53,13 +53,13 @@ USE SCHEMA IDENTIFIER($NAMESPACE);
  * Stores your GitHub PAT token securely in Snowflake.
  * This secret is used to authenticate with GitHub.
  *
- * ⚠️ UPDATE USERNAME AND PASSWORD BELOW WITH YOUR GITHUB CREDENTIALS ⚠️
+ * UPDATE USERNAME AND PASSWORD BELOW WITH YOUR GITHUB CREDENTIALS
  ******************************************************************************/
 
 CREATE OR REPLACE SECRET GIT_ECONOMIC_TEMPLATE_SECRET
   TYPE = password
-  USERNAME = 'your-username'           -- ⚠️ CHANGE THIS
-  PASSWORD = 'your-pat-token'     -- ⚠️ CHANGE THIS
+  USERNAME = 'your-username'           --  CHANGE THIS
+  PASSWORD = 'your-pat-token'     -- CHANGE THIS
   COMMENT = 'GitHub PAT token for Economic Snowflake Template repository access';
 
 -- Grant usage to SYSADMIN so they can use git integration
@@ -144,7 +144,7 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/00_execute_all_file
  ******************************************************************************/
 
 -- Update secrets with actual Economic API credentials
--- ⚠️ UNCOMMENT AND RUN THESE AFTER INITIAL DEPLOYMENT ⚠️
+-- UNCOMMENT AND RUN THESE AFTER INITIAL DEPLOYMENT
 
 -- USE ROLE ACCOUNTADMIN;
 -- ALTER SECRET ECONOMIC_XAPIKEY_APPSECRET
@@ -170,7 +170,7 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/00_execute_all_file
  * Note: You'll need to recreate these if you want to re-deploy or update.
  ******************************************************************************/
 
--- ⚠️ UNCOMMENT TO CLEANUP AFTER SUCCESSFUL DEPLOYMENT ⚠️
+-- UNCOMMENT TO CLEANUP AFTER SUCCESSFUL DEPLOYMENT
 
 -- USE ROLE ACCOUNTADMIN;
 -- DROP GIT REPOSITORY IF EXISTS ECONOMIC_TEMPLATE_REPO;
