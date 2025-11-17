@@ -15,6 +15,8 @@
  ******************************************************************************/
 
 USE ROLE ACCOUNTADMIN;
+USE DATABASE ECONOMIC;
+USE SCHEMA CONFIG;
 
 CREATE OR REPLACE NETWORK RULE PRESTASHOP_API_NETWORK_RULE
   MODE = EGRESS

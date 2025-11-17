@@ -21,6 +21,8 @@
  ******************************************************************************/
 
 USE ROLE ACCOUNTADMIN;
+USE DATABASE ECONOMIC;
+USE SCHEMA CONFIG;
 
 /*******************************************************************************
  * STEP 1: CREATE NETWORK RULE FOR ECONOMIC API ACCESS
