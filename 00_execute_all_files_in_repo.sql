@@ -24,6 +24,20 @@
 USE ROLE ACCOUNTADMIN;
 
 /*******************************************************************************
+ * FILE 02: DATABASE, SCHEMAS & RBAC SETUP
+ *
+ * Creates:
+ * - ECONOMIC database
+ * - Schemas: CONFIG, UTIL, RAW, BRONZE, SILVER
+ * - Roles: ECONOMIC_ADMIN, ECONOMIC_WRITE, ECONOMIC_READ
+ * - Grants and future grants
+ *
+ * NOTE: Must run FIRST to create roles before secrets grant usage to them
+ ******************************************************************************/
+
+EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/02_database_schema_roles_setup.sql;
+
+/*******************************************************************************
  * FILE 01: NETWORK RULES & SECRETS SETUP
  *
  * Creates:
@@ -33,18 +47,6 @@ USE ROLE ACCOUNTADMIN;
  ******************************************************************************/
 
 EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/01_network_secrets_setup.sql;
-
-/*******************************************************************************
- * FILE 02: DATABASE, SCHEMAS & RBAC SETUP
- *
- * Creates:
- * - ECONOMIC database
- * - Schemas: CONFIG, UTIL, RAW, BRONZE, SILVER
- * - Roles: ECONOMIC_ADMIN, ECONOMIC_WRITE, ECONOMIC_READ
- * - Grants and future grants
- ******************************************************************************/
-
-EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/02_database_schema_roles_setup.sql;
 
 /*******************************************************************************
  * FILE 01B: PRESTASHOP NETWORK RULES & SECRETS SETUP
