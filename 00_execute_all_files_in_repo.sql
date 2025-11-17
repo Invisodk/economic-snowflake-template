@@ -232,12 +232,8 @@ SELECT
 -- ALTER SECRET ECONOMIC_XAPIKEY_APPSECRET SET SECRET_STRING = 'your_actual_appsecret';
 -- ALTER SECRET ECONOMIC_XAPIKEY_AGREEMENTGRANT SET SECRET_STRING = 'your_actual_agreementgrant';
 
--- Step 2: Update PrestaShop API secrets with real credentials
--- ALTER SECRET PRESTA_API_KEY SET SECRET_STRING = 'your_actual_prestashop_api_key';
-
--- Step 3: Update network rules to point to your actual API endpoints
--- ALTER NETWORK RULE PRESTA_APIS_NETWORK_RULE
---   SET VALUE_LIST = ('your-prestashop-domain.com');
+-- Step 2: Update PrestaShop API secret with real credentials
+-- ALTER SECRET PRESTASHOP_WS_KEY SET SECRET_STRING = 'your_actual_prestashop_ws_key';
 
 
 -- Step 5: Run first data ingestion

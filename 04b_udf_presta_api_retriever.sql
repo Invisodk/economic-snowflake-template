@@ -46,8 +46,7 @@ PACKAGES = ('requests')
 HANDLER = 'prestashop_api_retriever'
 EXTERNAL_ACCESS_INTEGRATIONS = (PRESTASHOP_API_INTEGRATION)
 SECRETS = (
-  'ws_key' = PRESTASHOP_WS_KEY,
-  'domain' = PRESTASHOP_DOMAIN
+  'ws_key' = PRESTASHOP_WS_KEY
 )
 AS
 $$
@@ -64,7 +63,7 @@ def prestashop_api_retriever(endpoint: str, pagesize: int = 1000, startpage: int
     - We calculate: offset = startpage * pagesize
     """
     ws_key = _snowflake.get_generic_secret_string('ws_key').strip()
-    domain = _snowflake.get_generic_secret_string('domain').strip()
+    domain = "dogcopenhagen.com"  # Hardcoded PrestaShop domain
 
     # Clean endpoint path
     endpoint = (endpoint or "").lstrip("/")
