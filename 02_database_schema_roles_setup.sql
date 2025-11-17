@@ -177,22 +177,7 @@ GRANT SELECT ON FUTURE VIEWS IN SCHEMA ECONOMIC.SILVER TO ROLE ECONOMIC_WRITE;
 GRANT SELECT ON FUTURE VIEWS IN SCHEMA ECONOMIC.SILVER TO ROLE ECONOMIC_READ;
 
 /*******************************************************************************
- * STEP 9: EXTERNAL ACCESS INTEGRATION GRANTS
- *
- * Grant usage on external access integrations for API connectivity.
- * These integrations were created in files 01 and 01b.
- ******************************************************************************/
-
--- Grant usage on Economic API integration
-GRANT USAGE ON INTEGRATION ECONOMIC_API_INTEGRATION TO ROLE ECONOMIC_ADMIN;
-GRANT USAGE ON INTEGRATION ECONOMIC_API_INTEGRATION TO ROLE ECONOMIC_WRITE;
-
--- Grant usage on PrestaShop API integration
-GRANT USAGE ON INTEGRATION PRESTASHOP_API_INTEGRATION TO ROLE ECONOMIC_ADMIN;
-GRANT USAGE ON INTEGRATION PRESTASHOP_API_INTEGRATION TO ROLE ECONOMIC_WRITE;
-
-/*******************************************************************************
- * STEP 10: WAREHOUSE GRANTS
+ * STEP 9: WAREHOUSE GRANTS
  *
  * Grant access to COMPUTE_WH for query execution.
  * Adjust warehouse name if your environment uses a different warehouse.
