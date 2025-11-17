@@ -112,7 +112,7 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/05_raw_tables.sql;
  * FILE 06: REST INGESTION PROCEDURE
  *
  * Creates:
- * - UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY procedure
+ * - UTIL.ECONOMIC_RESTAPI_DATAINGEST procedure
  * - Ingests all active REST endpoints from config table
  ******************************************************************************/
 
@@ -132,7 +132,7 @@ EXECUTE IMMEDIATE FROM @ECONOMIC_TEMPLATE_REPO/branches/main/06b_presta_rest_ing
  * FILE 07: OPENAPI INGESTION PROCEDURE
  *
  * Creates:
- * - UTIL.ECONOMIC_OPENAPI_DATAINGEST_MONTHLY procedure
+ * - UTIL.ECONOMIC_OPENAPI_DATAINGEST procedure
  * - Ingests all active OpenAPI endpoints from config table
  ******************************************************************************/
 
@@ -235,11 +235,10 @@ SELECT
 -- Step 2: Update PrestaShop API secret with real credentials
 -- ALTER SECRET PRESTASHOP_WS_KEY SET SECRET_STRING = 'your_actual_prestashop_ws_key';
 
-
 -- Step 5: Run first data ingestion
--- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY();
--- CALL UTIL.ECONOMIC_OPENAPI_DATAINGEST_MONTHLY();
--- CALL UTIL.PRESTA_RESTAPI_DATAINGEST();
+-- CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST();
+-- CALL UTIL.ECONOMIC_OPENAPI_DATAINGEST();
+-- CALL UTIL.PRESTASHOP_RESTAPI_DATAINGEST();
 
 -- Step 6: Verify data in Bronze layer (Economic)
 -- SELECT * FROM BRONZE.CUSTOMERS LIMIT 10;

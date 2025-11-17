@@ -23,63 +23,60 @@ USE DATABASE ECONOMIC;
 USE SCHEMA UTIL;
 
 /*******************************************************************************
- * TASK 1: E-CONOMIC DAILY REFRESH
+ * TASK 1: ECONOMIC OPENAPI DAILY REFRESH (INVOICE LINES)
+ *
+ * This task runs the e-conomic OpenAPI ingestion procedure daily.
+ * Ingests: Invoice lines (bulk), Journal entries
+ * Runs FIRST at 1 AM to get invoice line details
+ ******************************************************************************/
+
+CREATE OR REPLACE TASK ECONOMIC_OPENAPI_DAILY_REFRESH
+  WAREHOUSE = COMPUTE_WH
+  SCHEDULE = 'USING CRON 0 1 * * * Europe/Copenhagen'  -- Daily at 1:00 AM
+  COMMENT = 'Daily refresh of e-conomic OpenAPI data (invoice lines, journal entries)'
+AS
+  CALL UTIL.ECONOMIC_OPENAPI_DATAINGEST();
+
+/*******************************************************************************
+ * TASK 2: E-CONOMIC REST DAILY REFRESH
  *
  * This task runs the e-conomic REST API ingestion procedure daily.
  * Ingests: Invoices, Customers, Products, Layouts
+ * Runs at 2 AM (after OpenAPI invoice lines)
  ******************************************************************************/
 
-CREATE OR REPLACE TASK ECONOMIC_DAILY_REFRESH
+CREATE OR REPLACE TASK ECONOMIC_RESTAPI_DAILY_REFRESH
   WAREHOUSE = COMPUTE_WH
   SCHEDULE = 'USING CRON 0 2 * * * Europe/Copenhagen'  -- Daily at 2 AM Copenhagen time
-  COMMENT = 'Daily refresh of e-conomic API data (invoices, customers, products)'
+  COMMENT = 'Daily refresh of e-conomic REST API data (invoices, customers, products)'
 AS
-  CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST_MONTHLY();
-
--- Task is created in SUSPENDED state by default (Snowflake behavior)
--- This is intentional for safety - you must explicitly resume it
-
+  CALL UTIL.ECONOMIC_RESTAPI_DATAINGEST();
 
 /*******************************************************************************
- * TASK 2: PRESTASHOP DAILY REFRESH
+ * TASK 3: PRESTASHOP DAILY REFRESH
  *
  * This task runs the PrestaShop REST API ingestion procedure daily.
  * Ingests: Products, Categories, Combinations (variants), Option Values
- * Scheduled 30 min after e-conomic to avoid resource contention.
+ * Scheduled at 2:30 AM (after e-conomic)
  ******************************************************************************/
 
 CREATE OR REPLACE TASK PRESTASHOP_DAILY_REFRESH
   WAREHOUSE = COMPUTE_WH
-  SCHEDULE = 'USING CRON 30 2 * * * Europe/Copenhagen'  -- Daily at 2:30 AM (30 min after e-conomic)
+  SCHEDULE = 'USING CRON 30 2 * * * Europe/Copenhagen'  -- Daily at 2:30 AM
   COMMENT = 'Daily refresh of PrestaShop API data (products, categories, variants)'
 AS
-  CALL UTIL.PRESTA_RESTAPI_RETRIEVER();
-
-
-/*******************************************************************************
- * OPTIONAL: CREATE OPENAPI REFRESH TASK
- *
- * If you activate OpenAPI endpoints, create a separate task for them.
- * Uncomment the code below to enable.
- ******************************************************************************/
-
--- CREATE OR REPLACE TASK ECONOMIC_OPENAPI_DAILY_REFRESH
---   WAREHOUSE = COMPUTE_WH
---   SCHEDULE = 'USING CRON 0 3 * * * Europe/Copenhagen'  -- Daily at 3:00 AM (after PrestaShop)
---   COMMENT = 'Daily refresh of e-conomic API data (OpenAPI endpoints)'
--- AS
---   CALL UTIL.ECONOMIC_OPENAPI_DATAINGEST_MONTHLY();
+  CALL UTIL.PRESTASHOP_RESTAPI_DATAINGEST();
 
 /*******************************************************************************
  * GRANT TASK PRIVILEGES
  ******************************************************************************/
 
--- Grant ownership to ECONOMIC_ADMIN
-GRANT OWNERSHIP ON TASK ECONOMIC_DAILY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON TASK ECONOMIC_OPENAPI_DAILY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON TASK ECONOMIC_RESTAPI_DAILY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
 GRANT OWNERSHIP ON TASK PRESTASHOP_DAILY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
 
--- Grant monitoring privileges to ECONOMIC_WRITE
-GRANT MONITOR ON TASK ECONOMIC_DAILY_REFRESH TO ROLE ECONOMIC_WRITE;
+GRANT MONITOR ON TASK ECONOMIC_OPENAPI_DAILY_REFRESH TO ROLE ECONOMIC_WRITE;
+GRANT MONITOR ON TASK ECONOMIC_RESTAPI_DAILY_REFRESH TO ROLE ECONOMIC_WRITE;
 GRANT MONITOR ON TASK PRESTASHOP_DAILY_REFRESH TO ROLE ECONOMIC_WRITE;
 
 /*******************************************************************************
