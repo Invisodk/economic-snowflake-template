@@ -22,7 +22,8 @@
 
 -- Ensure we're using the correct role for deployment
 USE ROLE ACCOUNTADMIN;
-USE SCHEMA ECONOMIC.CONFIG;
+USE DATABASE ECONOMIC;
+USE SCHEMA CONFIG;
 
 /*******************************************************************************
  * FILE 02: DATABASE, SCHEMAS & RBAC SETUP
