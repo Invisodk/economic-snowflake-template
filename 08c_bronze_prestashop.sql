@@ -219,21 +219,21 @@ deduped_combination_options AS (
 sizes AS (
   SELECT
     co.combination_id,
-    ov.option_value_name AS size_name,
-    ov.option_group_id
+    ov.option_value_name AS size_name
   FROM deduped_combination_options co
   JOIN deduped_option_values ov ON co.option_value_id = ov.option_value_id
-  WHERE ov.option_group_id = 1  -- Adjust this if needed based on your PrestaShop setup
+  WHERE ov.option_group_id = 1
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY co.combination_id ORDER BY co.option_value_id) = 1
 ),
 -- Get color values (option_group_id = 2 typically for Color)
 colors AS (
   SELECT
     co.combination_id,
-    ov.option_value_name AS color_name,
-    ov.option_group_id
+    ov.option_value_name AS color_name
   FROM deduped_combination_options co
   JOIN deduped_option_values ov ON co.option_value_id = ov.option_value_id
-  WHERE ov.option_group_id = 2  -- Adjust this if needed based on your PrestaShop setup
+  WHERE ov.option_group_id = 2
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY co.combination_id ORDER BY co.option_value_id) = 1
 ),
 -- Get all option values (for cases where option_group_id is not 1 or 2)
 all_options AS (
