@@ -1,92 +1,93 @@
-
-
 {
-  "collection": [
+  "bookedInvoiceNumber": 10001522,
+  "orderNumber": 421,
+  "date": "2018-03-19",
+  "currency": "EUR",
+  "exchangeRate": 744.859813,
+  "netAmount": 39.59,
+  "netAmountInBaseCurrency": 294.89,
+  "grossAmount": 49.49,
+  "grossAmountInBaseCurrency": 368.63,
+  "vatAmount": 9.90,
+  "roundingAmount": 0.00,
+  "remainder": 0.00,
+  "remainderInBaseCurrency": 0.00,
+  "dueDate": "2018-03-19",
+  "paymentTerms": {
+    "paymentTermsNumber": 3,
+    "daysOfCredit": 0,
+    "name": "Til omgående betaling",
+    "paymentTermsType": "net",
+    "self": "https://restapi.e-conomic.com/payment-terms/3"
+  },
+  "customer": {
+    "customerNumber": 1154,
+    "self": "https://restapi.e-conomic.com/customers/1154"
+  },
+  "recipient": {
+    "name": "Marie  Ragons ",
+    "address": "8 avenue Faidherbe",
+    "zip": "59240",
+    "city": "Dunkerque",
+    "country": "FR",
+    "vatZone": {
+      "name": "Domestic",
+      "vatZoneNumber": 1,
+      "enabledForCustomer": true,
+      "enabledForSupplier": true,
+      "self": "https://restapi.e-conomic.com/vat-zones/1"
+    }
+  },
+  "delivery": {
+    "address": "8 avenue Faidherbe",
+    "zip": "59240",
+    "city": "Dunkerque",
+    "country": "FR"
+  },
+  "references": {
+    "other": "1952"
+  },
+  "layout": {
+    "layoutNumber": 19,
+    "self": "https://restapi.e-conomic.com/layouts/19"
+  },
+  "pdf": {
+    "download": "https://restapi.e-conomic.com/invoices/booked/10001522/pdf"
+  },
+  "lines": [
     {
-      "bookedInvoiceNumber": 1,
-      "currency": "DKK",
-      "customer": {
-        "customerNumber": 1,
-        "self": "https://restapi.e-conomic.com/customers/1?demo=true"
-      },
-      "date": "2022-06-02",
-      "delivery": {
-        "address": "Langebrogade 1",
-        "city": "København K",
-        "country": "Denmark",
-        "zip": "1411"
-      },
-      "deliveryLocation": {
-        "deliveryLocationNumber": 1,
-        "self": "https://restapi.e-conomic.com/customers/1/delivery-locations/1?demo=true"
-      },
-      "dueDate": "2022-06-10",
-      "exchangeRate": 100,
-      "grossAmount": 87.5,
-      "grossAmountInBaseCurrency": 87.5,
-      "layout": {
-        "layoutNumber": 21,
-        "self": "https://restapi.e-conomic.com/layouts/21?demo=true"
-      },
-      "netAmount": 70,
-      "netAmountInBaseCurrency": 70,
-      "orderNumber": 1,
-      "paymentTerms": {
-        "daysOfCredit": 8,
-        "description": "Netto 8 dage",
-        "name": "Netto 8 dage",
-        "paymentTermsNumber": 1,
-        "paymentTermsType": "net",
-        "self": "https://restapi.e-conomic.com/payment-terms/1?demo=true"
-      },
-      "pdf": {
-        "download": "https://restapi.e-conomic.com/invoices/booked/1/pdf?demo=true"
-      },
-      "recipient": {
-        "address": "Avenue des Arts No 5",
-        "attention": {
-          "customerContactNumber": 1,
-          "self": "https://restapi.e-conomic.com/customers/1/contacts/1?demo=true"
-        },
-        "city": "Brussels",
-        "country": "Belgium",
-        "name": "Customer 1",
-        "vatZone": {
-          "enabledForCustomer": true,
-          "enabledForSupplier": true,
-          "name": "Domestic",
-          "self": "https://restapi.e-conomic.com/vat-zones/1?demo=true",
-          "vatZoneNumber": 1
-        },
-        "zip": "1040"
-      },
-      "references": {
-        "customerContact": {
-          "customerContactNumber": 2,
-          "self": "https://restapi.e-conomic.com/customers/1/contacts/2?demo=true"
-        },
-        "salesPerson": {
-          "employeeNumber": 1,
-          "self": "https://restapi.e-conomic.com/employees/1?demo=true"
-        }
-      },
-      "remainder": 0,
-      "remainderInBaseCurrency": 0,
-      "roundingAmount": 0,
-      "self": "https://restapi.e-conomic.com/invoices/booked/1?demo=true",
-      "sent": "https://restapi.e-conomic.com/invoices/booked/1/sent?demo=true",
-      "vatAmount": 17.5
+      "lineNumber": 1,
+      "sortKey": 1,
+      "description": "Comfort Walk Pro™ Harness - Size : XS, Color : Black",
+      "quantity": 1.00,
+      "unitNetPrice": 33.56,
+      "discountPercentage": 0.00,
+      "unitCostPrice": 0.00,
+      "vatRate": 25.00000000,
+      "vatAmount": 8.3900,
+      "totalNetAmount": 33.56,
+      "product": {
+        "productNumber": "HAR111213",
+        "self": "https://restapi.e-conomic.com/products/HAR111213"
+      }
+    },
+    {
+      "lineNumber": 2,
+      "sortKey": 2,
+      "description": "DHL (EU) Weltpaket",
+      "quantity": 1.00,
+      "unitNetPrice": 6.03,
+      "discountPercentage": 0.00,
+      "unitCostPrice": 0.00,
+      "vatRate": 25.00000000,
+      "vatAmount": 1.5075,
+      "totalNetAmount": 6.03,
+      "product": {
+        "productNumber": "fragtmm",
+        "self": "https://restapi.e-conomic.com/products/fragtmm"
+      }
     }
   ],
-  "pagination": {
-    "firstPage": "https://restapi.e-conomic.com/invoices/booked?skippages=0&pagesize=1&demo=true",
-    "lastPage": "https://restapi.e-conomic.com/invoices/booked?skippages=5&pagesize=1&demo=true",
-    "maxPageSizeAllowed": 1000,
-    "nextPage": "https://restapi.e-conomic.com/invoices/booked?skippages=1&pagesize=1&demo=true",
-    "pageSize": 1,
-    "results": 6,
-    "resultsWithoutFilter": 6,
-    "skipPages": 0
-  },
-  "self": "https://restapi.e-conomic.com/invoices/booked?skippages=0&pagesize=1&demo=true"
+  "sent": "https://restapi.e-conomic.com/invoices/booked/10001522/sent",
+  "self": "https://restapi.e-conomic.com/invoices/booked/10001522"
 }

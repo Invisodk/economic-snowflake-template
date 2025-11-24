@@ -41,7 +41,8 @@ CREATE OR REPLACE FUNCTION ECONOMIC_API_V2(
   BASE STRING DEFAULT 'REST',          -- 'REST' | 'OPENAPI'
   PAGESIZE INTEGER DEFAULT 1000,
   STARTPAGE INTEGER DEFAULT 0,
-  CURSOR_TOKEN VARCHAR DEFAULT NULL    -- For cursor-based pagination (OpenAPI bulk endpoints)
+  CURSOR_TOKEN VARCHAR DEFAULT NULL,   -- For cursor-based pagination (OpenAPI bulk endpoints)
+  FILTER_PARAM VARCHAR DEFAULT NULL    -- For incremental loading (e.g., 'lastUpdated$gte:2025-11-17T14:23:45Z')
 )
 RETURNS VARIANT
 LANGUAGE PYTHON
@@ -57,7 +58,7 @@ AS
 $$
 import _snowflake, requests
 
-def EconomicApiRetriever(endpointpath: str, base: str='REST', pagesize: int=5, startpage: int=0, cursor_token: str=None):
+def EconomicApiRetriever(endpointpath: str, base: str='REST', pagesize: int=5, startpage: int=0, cursor_token: str=None, filter_param: str=None):
     appsecret = _snowflake.get_generic_secret_string('appsecret').strip()
     agreementgrant = _snowflake.get_generic_secret_string('agreementgrant').strip()
 
@@ -79,6 +80,10 @@ def EconomicApiRetriever(endpointpath: str, base: str='REST', pagesize: int=5, s
     else:
         # REST API with skippages pagination
         url = f"{host}{endpointpath}?skippages={startpage}&pagesize={pagesize}"
+
+    # Add filter parameter for incremental loading (if provided)
+    if filter_param:
+        url = f"{url}&filter={filter_param}"
 
     # auto-demo mode when both secrets are 'demo'
     if appsecret == 'demo' and agreementgrant == 'demo':
@@ -104,10 +109,10 @@ $$;
  * GRANT USAGE TO ROLES
  ******************************************************************************/
 
-GRANT USAGE ON FUNCTION ECONOMIC_API_V2(VARCHAR, STRING, INTEGER, INTEGER, VARCHAR)
+GRANT USAGE ON FUNCTION ECONOMIC_API_V2(VARCHAR, STRING, INTEGER, INTEGER, VARCHAR, VARCHAR)
   TO ROLE ECONOMIC_ADMIN;
 
-GRANT USAGE ON FUNCTION ECONOMIC_API_V2(VARCHAR, STRING, INTEGER, INTEGER, VARCHAR)
+GRANT USAGE ON FUNCTION ECONOMIC_API_V2(VARCHAR, STRING, INTEGER, INTEGER, VARCHAR, VARCHAR)
   TO ROLE ECONOMIC_WRITE;
 
 /*******************************************************************************
