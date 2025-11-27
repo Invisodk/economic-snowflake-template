@@ -1,17 +1,19 @@
 /*******************************************************************************
  * FILE 10: TASK SCHEDULING
  *
- * Purpose: Automates weekly/monthly data refresh from e-conomic and PrestaShop APIs
+ * Purpose: Automates weekly/monthly data refresh from e-conomic, PrestaShop, and EPR
  *
  * Creates:
  * - ECONOMIC_RESTAPI_WEEKLY_REFRESH task (suspended by default)
  * - ECONOMIC_OPENAPI_WEEKLY_REFRESH task (suspended by default)
  * - PRESTASHOP_MONTHLY_REFRESH task (suspended by default)
+ * - EPR_WEEKLY_REFRESH task (suspended by default)
  *
  * Schedule:
  * - e-conomic REST: Every Sunday at 12:00 PM Copenhagen time (incremental)
  * - e-conomic OpenAPI: Every Sunday at 12:30 PM Copenhagen time (incremental)
  * - PrestaShop: 1st of each month at 12:00 PM Copenhagen time (full refresh)
+ * - EPR Packaging: Every Monday at 9:00 AM Copenhagen time (truncate and reload)
  * - Tasks are created in SUSPENDED state for safety
  *
  * Manual Control:
@@ -74,36 +76,63 @@ AS
   CALL UTIL.PRESTASHOP_RESTAPI_DATAINGEST();
 
 /*******************************************************************************
+ * TASK 4: EPR PACKAGING WEEKLY REFRESH (TRUNCATE AND RELOAD)
+ *
+ * This task runs the EPR packaging data ingestion procedure weekly.
+ * Ingests: SKU packaging weights from Excel file in EPR_STAGE
+ * Scheduled every Sunday at 1:00 PM (after e-conomic data refreshes)
+ * Truncate and reload strategy (always reflects current packaging specs)
+ * Expected load time: <1 minute (385 SKUs)
+ *
+ * Prerequisites:
+ * - Excel file named 'DC ProductSpecs.xlsx' must be in EPR_STAGE
+ * - Jan uploads/replaces file as needed
+ * - Procedure automatically truncates table before loading
+ ******************************************************************************/
+
+CREATE OR REPLACE TASK EPR_WEEKLY_REFRESH
+  WAREHOUSE = COMPUTE_WH
+  SCHEDULE = 'USING CRON 0 13 * * 0 Europe/Copenhagen'  -- Every Sunday at 1:00 PM
+  COMMENT = 'Weekly refresh of EPR packaging data (truncate and reload from EPR_STAGE)'
+AS
+  CALL RAW.INGEST_EPR_FROM_STAGE('DC ProductSpecs.xlsx');
+
+/*******************************************************************************
  * GRANT TASK PRIVILEGES
  ******************************************************************************/
 
 GRANT OWNERSHIP ON TASK ECONOMIC_RESTAPI_WEEKLY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
 GRANT OWNERSHIP ON TASK ECONOMIC_OPENAPI_WEEKLY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
 GRANT OWNERSHIP ON TASK PRESTASHOP_MONTHLY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
+GRANT OWNERSHIP ON TASK EPR_WEEKLY_REFRESH TO ROLE ECONOMIC_ADMIN COPY CURRENT GRANTS;
 
 GRANT MONITOR ON TASK ECONOMIC_RESTAPI_WEEKLY_REFRESH TO ROLE ECONOMIC_WRITE;
 GRANT MONITOR ON TASK ECONOMIC_OPENAPI_WEEKLY_REFRESH TO ROLE ECONOMIC_WRITE;
 GRANT MONITOR ON TASK PRESTASHOP_MONTHLY_REFRESH TO ROLE ECONOMIC_WRITE;
+GRANT MONITOR ON TASK EPR_WEEKLY_REFRESH TO ROLE ECONOMIC_WRITE;
 
 /*******************************************************************************
  * TASK MANAGEMENT
  ******************************************************************************/
 
 -- Resume tasks (enable automatic execution)
--- ALTER TASK ECONOMIC_RESTAPI_WEEKLY_REFRESH RESUME;
--- ALTER TASK ECONOMIC_OPENAPI_WEEKLY_REFRESH RESUME;
--- ALTER TASK PRESTASHOP_MONTHLY_REFRESH RESUME;
+ALTER TASK ECONOMIC_RESTAPI_WEEKLY_REFRESH RESUME;
+ALTER TASK ECONOMIC_OPENAPI_WEEKLY_REFRESH RESUME;
+ALTER TASK PRESTASHOP_MONTHLY_REFRESH RESUME;
+ALTER TASK EPR_WEEKLY_REFRESH RESUME;
 
 -- Suspend tasks
 -- ALTER TASK ECONOMIC_RESTAPI_WEEKLY_REFRESH SUSPEND;
+-- ALTER TASK EPR_WEEKLY_REFRESH SUSPEND;
 
 -- Execute manually
 -- EXECUTE TASK ECONOMIC_RESTAPI_WEEKLY_REFRESH;
+-- EXECUTE TASK EPR_WEEKLY_REFRESH;
 
 -- Check task history
 -- SELECT NAME, STATE, SCHEDULED_TIME, COMPLETED_TIME, ERROR_MESSAGE
 -- FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY())
--- WHERE NAME IN ('ECONOMIC_RESTAPI_WEEKLY_REFRESH', 'ECONOMIC_OPENAPI_WEEKLY_REFRESH', 'PRESTASHOP_MONTHLY_REFRESH')
+-- WHERE NAME IN ('ECONOMIC_RESTAPI_WEEKLY_REFRESH', 'ECONOMIC_OPENAPI_WEEKLY_REFRESH', 'PRESTASHOP_MONTHLY_REFRESH', 'EPR_WEEKLY_REFRESH')
 -- ORDER BY SCHEDULED_TIME DESC LIMIT 20;
 
 /*******************************************************************************

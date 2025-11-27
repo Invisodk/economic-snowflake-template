@@ -24,6 +24,7 @@ USE ROLE ECONOMIC_ADMIN;
 USE WAREHOUSE ECONOMIC_WH;
 USE DATABASE ECONOMIC;
 
+USE SCHEMA RAW;
 /*
 ==============================================================================
 STEP 1: CREATE SCHEDULED TASK
@@ -31,12 +32,12 @@ STEP 1: CREATE SCHEDULED TASK
 Creates a task that runs monthly to ingest EPR data from Dropbox.
 */
 
-CREATE OR REPLACE TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+CREATE OR REPLACE TASK TASK_INGEST_EPR_MONTHLY
 WAREHOUSE = ECONOMIC_WH
 SCHEDULE = 'USING CRON 0 2 1 * * UTC'  -- 1st of every month at 2:00 AM UTC
 COMMENT = 'Monthly automated ingestion of EPR packaging data from Dropbox'
 AS
-CALL ECONOMIC.RAW.INGEST_EPR_FROM_DROPBOX(
+CALL INGEST_EPR_FROM_DROPBOX(
     '/EPR/master_packaging_file.xlsx',  -- UPDATE THIS: Your Dropbox file path
     'Sheet1'                             -- UPDATE THIS: Your sheet name or '0'
 );
@@ -49,10 +50,10 @@ Tasks are created in SUSPENDED state by default.
 */
 
 -- Resume the task to enable scheduled execution
-ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY RESUME;
+ALTER TASK TASK_INGEST_EPR_MONTHLY RESUME;
 
 -- Verify task is running
-SHOW TASKS LIKE 'TASK_INGEST_EPR_MONTHLY' IN SCHEMA ECONOMIC.RAW;
+SHOW TASKS LIKE 'TASK_INGEST_EPR_MONTHLY' IN SCHEMA
 
 /*
 ==============================================================================
@@ -61,8 +62,8 @@ STEP 3: GRANT PERMISSIONS
 Allow ECONOMIC_WRITE role to monitor and manage the task.
 */
 
-GRANT MONITOR ON TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY TO ROLE ECONOMIC_WRITE;
-GRANT OPERATE ON TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY TO ROLE ECONOMIC_WRITE;
+GRANT MONITOR ON TASK TASK_INGEST_EPR_MONTHLY TO ROLE ECONOMIC_WRITE;
+GRANT OPERATE ON TASK TASK_INGEST_EPR_MONTHLY TO ROLE ECONOMIC_WRITE;
 
 /*
 ==============================================================================
@@ -74,7 +75,7 @@ Useful commands for managing and monitoring the scheduled task.
 -- ============================================
 -- Check task status and schedule
 -- ============================================
-SHOW TASKS LIKE 'TASK_INGEST_EPR_MONTHLY' IN SCHEMA ECONOMIC.RAW;
+SHOW TASKS LIKE 'TASK_INGEST_EPR_MONTHLY' IN SCHEMA
 
 -- ============================================
 -- View task execution history
@@ -96,27 +97,27 @@ ORDER BY SCHEDULED_TIME DESC;
 -- ============================================
 -- Manually trigger task (for testing)
 -- ============================================
--- EXECUTE TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY;
+-- EXECUTE TASK TASK_INGEST_EPR_MONTHLY;
 
 -- ============================================
 -- Suspend task (pause scheduled execution)
 -- ============================================
--- ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY SUSPEND;
+-- ALTER TASK TASK_INGEST_EPR_MONTHLY SUSPEND;
 
 -- ============================================
 -- Resume task (enable scheduled execution)
 -- ============================================
--- ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY RESUME;
+-- ALTER TASK TASK_INGEST_EPR_MONTHLY RESUME;
 
 -- ============================================
 -- Modify task schedule
 -- ============================================
 -- Example: Change to run on 5th of every month at 3 AM
--- ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+-- ALTER TASK TASK_INGEST_EPR_MONTHLY
 -- SET SCHEDULE = 'USING CRON 0 3 5 * * UTC';
 
 -- Example: Change to run every Sunday at 1 AM
--- ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+-- ALTER TASK TASK_INGEST_EPR_MONTHLY
 -- SET SCHEDULE = 'USING CRON 0 1 * * 0 UTC';
 
 -- ============================================
@@ -127,7 +128,7 @@ SELECT
     SOURCE_FILE,
     COUNT(*) AS row_count,
     COUNT(DISTINCT SKU) AS unique_skus
-FROM ECONOMIC.RAW.SKU_PACKAGING_DATA
+FROM SKU_PACKAGING_DATA
 GROUP BY DATE_UPLOADED, SOURCE_FILE
 ORDER BY DATE_UPLOADED DESC;
 
@@ -142,7 +143,7 @@ SELECT
     FOAM_KG_PER_UNIT,
     DATE_UPLOADED,
     SOURCE_FILE
-FROM ECONOMIC.RAW.SKU_PACKAGING_DATA
+FROM SKU_PACKAGING_DATA
 QUALIFY ROW_NUMBER() OVER (PARTITION BY SKU ORDER BY DATE_UPLOADED DESC) = 1
 ORDER BY DATE_UPLOADED DESC
 LIMIT 20;
@@ -191,18 +192,18 @@ If you want to chain tasks (e.g., refresh views after data load):
 */
 
 -- Example: Task that runs after EPR ingestion completes
--- CREATE OR REPLACE TASK ECONOMIC.RAW.TASK_REFRESH_EPR_VIEWS
+-- CREATE OR REPLACE TASK TASK_REFRESH_EPR_VIEWS
 -- WAREHOUSE = ECONOMIC_WH
--- AFTER ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+-- AFTER TASK_INGEST_EPR_MONTHLY
 -- COMMENT = 'Refresh materialized views after EPR data ingestion'
 -- AS
 -- BEGIN
 --     -- Refresh any materialized views or run data quality checks
---     CALL ECONOMIC.RAW.VALIDATE_EPR_DATA_QUALITY();
+--     CALL VALIDATE_EPR_DATA_QUALITY();
 -- END;
 
 -- Don't forget to RESUME dependent tasks:
--- ALTER TASK ECONOMIC.RAW.TASK_REFRESH_EPR_VIEWS RESUME;
+-- ALTER TASK TASK_REFRESH_EPR_VIEWS RESUME;
 
 /*
 ==============================================================================
@@ -219,7 +220,7 @@ Set up email notifications for task failures.
 -- ENABLED = TRUE
 -- ALLOWED_RECIPIENTS = ('your-email@dogcopenhagen.com');
 --
--- ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+-- ALTER TASK TASK_INGEST_EPR_MONTHLY
 -- SET ERROR_INTEGRATION = EPR_TASK_EMAIL_INTEGRATION;
 
 /*
@@ -231,22 +232,22 @@ You might want to add a cleanup task.
 */
 
 -- Example: Create a cleanup task that runs after ingestion
--- CREATE OR REPLACE TASK ECONOMIC.RAW.TASK_CLEANUP_OLD_EPR_DATA
+-- CREATE OR REPLACE TASK TASK_CLEANUP_OLD_EPR_DATA
 -- WAREHOUSE = ECONOMIC_WH
--- AFTER ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+-- AFTER TASK_INGEST_EPR_MONTHLY
 -- COMMENT = 'Cleanup old EPR packaging data, keeping only latest per SKU'
 -- AS
 -- BEGIN
 --     -- Keep only the most recent upload per SKU, delete older versions
---     DELETE FROM ECONOMIC.RAW.SKU_PACKAGING_DATA
+--     DELETE FROM SKU_PACKAGING_DATA
 --     WHERE (SKU, DATE_UPLOADED) NOT IN (
 --         SELECT SKU, MAX(DATE_UPLOADED)
---         FROM ECONOMIC.RAW.SKU_PACKAGING_DATA
+--         FROM SKU_PACKAGING_DATA
 --         GROUP BY SKU
 --     );
 -- END;
 
--- ALTER TASK ECONOMIC.RAW.TASK_CLEANUP_OLD_EPR_DATA RESUME;
+-- ALTER TASK TASK_CLEANUP_OLD_EPR_DATA RESUME;
 
 /*
 ==============================================================================
@@ -256,11 +257,11 @@ Tasks consume compute credits when running. Optimize costs by:
 */
 
 -- 1. Use smallest warehouse that meets performance needs
--- ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+-- ALTER TASK TASK_INGEST_EPR_MONTHLY
 -- SET WAREHOUSE = ECONOMIC_WH;  -- Use X-Small for this lightweight task
 
 -- 2. Set task timeout to prevent runaway costs
--- ALTER TASK ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+-- ALTER TASK TASK_INGEST_EPR_MONTHLY
 -- SET USER_TASK_TIMEOUT_MS = 300000;  -- 5 minutes max
 
 -- 3. Monitor task costs
@@ -284,7 +285,7 @@ DEPLOYMENT COMPLETE
 ==============================================================================
 
 ✅ Objects Created:
-   1. TASK: ECONOMIC.RAW.TASK_INGEST_EPR_MONTHLY
+   1. TASK: TASK_INGEST_EPR_MONTHLY
 
 📋 Task Schedule:
    - Frequency: Monthly (1st of each month)
