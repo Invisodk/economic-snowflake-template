@@ -59,7 +59,7 @@ GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE SNOWFLAKE_INTELLIGENCE_ADMIN;
 -- Grant role to current user
 -- Replace 'YOUR_USERNAME' with your actual Snowflake username
 -- Example: GRANT ROLE SNOWFLAKE_INTELLIGENCE_ADMIN TO USER "STORM.SORENSEN";
-GRANT ROLE SNOWFLAKE_INTELLIGENCE_ADMIN TO USER "YOUR_USERNAME";
+GRANT ROLE SNOWFLAKE_INTELLIGENCE_ADMIN TO USER "STORM.VOLF";
 
 -- Create warehouse for Cortex Analyst queries
 USE ROLE SNOWFLAKE_INTELLIGENCE_ADMIN;
@@ -207,7 +207,19 @@ $$;
 
 
 /*---------------------------------------------------------------*/
-/*** STEP 9: VERIFICATION                                      ***/
+/*** STEP 9: CREATE SNOWFLAKE INTELLIGENCE OBJECT              ***/
+/*---------------------------------------------------------------*/
+
+USE ROLE ACCOUNTADMIN;
+
+-- Curate which agents appear in Intelligence UI (only one per account)
+CREATE SNOWFLAKE INTELLIGENCE IF NOT EXISTS SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
+
+-- After creating agent: ALTER SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT ADD AGENT SNOWFLAKE_INTELLIGENCE.AGENTS.<agent_name>;
+
+
+/*---------------------------------------------------------------*/
+/*** STEP 10: VERIFICATION                                     ***/
 /*---------------------------------------------------------------*/
 
 USE ROLE SNOWFLAKE_INTELLIGENCE_ADMIN;
@@ -248,7 +260,10 @@ NEXT STEPS:
    - Add Cortex Analyst tool with your semantic model
    - Warehouse: CORTEX_WH
 
-3. Test queries (examples showcasing PrestaShop enrichment):
+3. Add Agent to Snowflake Intelligence Object:
+   - ALTER SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT ADD AGENT SNOWFLAKE_INTELLIGENCE.AGENTS.<agent_name>;
+
+4. Test queries (examples showcasing PrestaShop enrichment):
    - "What were our total sales by category?"
    - "Show me top 10 products by revenue with size and color"
    - "Which size and color combinations perform best?"

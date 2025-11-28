@@ -1,31 +1,19 @@
 name: Dog_Copenhagen_Economic_Data
+description: Sales analytics for Dog Copenhagen combining e-conomic ERP data with PrestaShop product catalog. Tracks revenue, profit, inventory, and customer behavior across B2B and B2C channels. Data refreshes every Sunday at 12:00 PM with the latest e-conomic transactions.
+
 tables:
   - name: VW_SALES_DETAIL
-    description: |
-      Complete sales detail showing invoice lines with revenue, costs, and profit margins. Enhanced with PrestaShop product master data including categories, sizes, colors, and EAN13 codes. This is the primary fact table for sales analysis. All monetary amounts are in DKK (base currency) regardless of original invoice currency.
-
-      **IMPORTANT - Invoice-Level Metrics:**
-      This is a LINE-LEVEL table where each row represents one line item on an invoice. A single invoice can have multiple lines.
-      - To calculate AVERAGE ORDER VALUE (AOV): Use SUM(line_revenue_dkk) / COUNT(DISTINCT invoice_id)
-      - To calculate INVOICE TOTALS: Use SUM(line_revenue_dkk) grouped by invoice_id
-      - NEVER use AVG(line_revenue_dkk) for average order value - this gives average line value, not average invoice value.
+    description: Primary sales fact table with invoice line-level detail. Enriched with PrestaShop product data (categories, sizes, colors). All amounts in DKK base currency. Each row is one line item - a single invoice can have multiple lines.
     base_table:
       database: ECONOMIC
       schema: SILVER
       table: VW_SALES_DETAIL
+
     dimensions:
-      # ============================================================
-      # PRODUCT DOMAIN
-      # Product attributes including categories, sizes, colors, SKUs
-      # ============================================================
+      # === PRODUCT DIMENSIONS ===
       - name: CATEGORY
-        synonyms:
-          - department
-          - prestashop_category
-          - product_category
-          - product_group
-          - product_type
-        description: Product category from PrestaShop master data. This is the PRIMARY category field for analysis. Values include 'Harnesses', 'Leads', 'Collars', 'Bowls', 'Bags', 'Adjustments' (for rabat/freight items), and 'Uncategorized'. Based on 85%+ match rate with PrestaShop.
+        synonyms: [product category, category name, product type, product line, department, product group]
+        description: PrestaShop product category. Primary field for category analysis.
         expr: CATEGORY
         data_type: VARCHAR
         sample_values:
@@ -34,25 +22,10 @@ tables:
           - Collars
           - Bowls
           - Bags
-          - Adjustments
-          - Uncategorized
-      - name: CATEGORY_LEVEL
-        synonyms:
-          - cat_level
-          - category_depth
-        description: Category hierarchy level from PrestaShop. Higher numbers indicate deeper nesting.
-        expr: CATEGORY_LEVEL
-        data_type: NUMBER
-        sample_values:
-          - '1'
-          - '2'
-          - '3'
+
       - name: COLOR
-        synonyms:
-          - color_variant
-          - colour
-          - product_color
-        description: Product color variant from PrestaShop (e.g., Black, Mocca, Ocean Blue, Orange Sun, Purple Passion). Critical for merchandising and trend analysis.
+        synonyms: [product color, color variant, colour, color option, product colour]
+        description: Product color variant from PrestaShop.
         expr: COLOR
         data_type: VARCHAR
         sample_values:
@@ -61,71 +34,75 @@ tables:
           - Ocean Blue
           - Orange Sun
           - Purple Passion
-          - Classic Red
-          - Hunting Green
-          - Desert Dune
-          - Lemon
-          - Caffe Latte
-      - name: CORE_PRODUCT_ECONOMIC
-        synonyms:
-          - base_product
-          - product_family
-          - product_line_economic
-        description: Core product name from e-conomic data without size or variant details. Useful for grouping product variants together.
-        expr: CORE_PRODUCT_ECONOMIC
+
+      - name: SIZE
+        synonyms: [product size, size variant, size option, dog size, product sizing]
+        description: Product size from PrestaShop.
+        expr: SIZE
+        data_type: VARCHAR
+        sample_values:
+          - XS
+          - S
+          - M
+          - L
+          - XL
+          - One-Size
+
+      - name: PRODUCT_SKU
+        synonyms: [sku, product code, item number, article number, product id]
+        description: Unique product identifier. Use to analyze specific products or count distinct SKUs.
+        expr: PRODUCT_SKU
+        data_type: VARCHAR
+        sample_values:
+          - HAR0569
+          - LEA0335
+          - COL0311
+          - BOW1245
+
+      - name: PRODUCT_NAME
+        synonyms: [item name, product description, product title, item description, product]
+        description: Full product name.
+        expr: PRODUCT_NAME
         data_type: VARCHAR
         sample_values:
           - Comfort Walk Air™ Harness
           - Urban Trail™ Leash
           - Urban Explorer™ Collar
-      # ============================================================
-      # CUSTOMER DOMAIN
-      # Customer information, location, and segmentation
-      # ============================================================
-      - name: CUSTOMER_CITY
-        synonyms:
-          - city
-          - customer_location
-          - town
-        description: City where the customer is located.
-        expr: CUSTOMER_CITY
+          - Travel Bowl
+
+      - name: EAN13
+        synonyms: [barcode, ean, product barcode, ean code, gtin]
+        description: EAN13 barcode from PrestaShop for product identification and inventory tracking.
+        expr: EAN13
         data_type: VARCHAR
         sample_values:
-          - Copenhagen
-          - Paris
-          - Amsterdam
-      - name: CUSTOMER_COUNTRY
-        synonyms:
-          - billing_country
-          - customer_location_country
-          - customer_nation
-        description: Country where the customer is registered or billed. This may differ from delivery_country - use delivery_country for geographic sales analysis.
-        expr: CUSTOMER_COUNTRY
+          - '5710534200001'
+          - '5710534200018'
+          - '5710534200025'
+
+      - name: PRESTASHOP_MATCH_STATUS
+        synonyms: [match status, data quality, enrichment status, product match, prestashop enrichment]
+        description: Indicates if SKU matched PrestaShop catalog. 'Matched' = full enrichment (85%+ recent data), 'Adjustment Item' = discounts/freight, 'Not in PrestaShop' = older SKUs.
+        expr: PRESTASHOP_MATCH_STATUS
         data_type: VARCHAR
         sample_values:
-          - Denmark
-          - France
-          - Netherlands
+          - Matched
+          - Adjustment Item
+          - Not in PrestaShop
+
+      # === CUSTOMER DIMENSIONS ===
       - name: CUSTOMER_ID
-        synonyms:
-          - client_id
-          - cust_id
-          - customer_id_number
-          - customer_number
-        description: Unique customer identifier. Use this to analyze sales by customer or count distinct customers.
+        synonyms: [customer number, client id, account id, cust id, customer code]
+        description: Unique customer identifier. Use to analyze by customer or count distinct customers.
         expr: CUSTOMER_ID
         data_type: NUMBER
         sample_values:
-          - '1'
-          - '2'
-          - '3'
+          - '1001'
+          - '2045'
+          - '3089'
+
       - name: CUSTOMER_NAME
-        synonyms:
-          - account_name
-          - buyer
-          - client_name
-          - customer
-          - customer_name
+        synonyms: [customer, client name, account name, buyer, client, company name]
         description: Name of the customer who made the purchase.
         expr: CUSTOMER_NAME
         data_type: VARCHAR
@@ -133,76 +110,85 @@ tables:
           - Pet Shop Denmark
           - Dog Boutique Paris
           - Hundebutikk Norge
+
       - name: CUSTOMER_SEGMENT
-        synonyms:
-          - business_type
-          - channel
-          - customer_type
-          - segment
-        description: Customer segment classification. 'B2B' indicates business-to-business sales (wholesalers, retailers), 'B2C' indicates direct consumer sales. This is critical for analyzing sales channels and customer behavior.
+        synonyms: [customer type, segment, channel, business type, sales channel]
+        description: Customer segment - B2B (business/wholesale/retail) or B2C (direct consumer sales).
         expr: CUSTOMER_SEGMENT
         data_type: VARCHAR
         sample_values:
           - B2B
           - B2C
-          - Unknown
-      # ============================================================
-      # GEOGRAPHY / DELIVERY DOMAIN
-      # Geographic and shipping information
-      # ============================================================
+
+      - name: CUSTOMER_COUNTRY
+        synonyms: [billing country, customer nation, account country, registered country]
+        description: Country where customer is registered. Use DELIVERY_COUNTRY for geographic sales analysis.
+        expr: CUSTOMER_COUNTRY
+        data_type: VARCHAR
+        sample_values:
+          - Denmark
+          - France
+          - Germany
+          - Sweden
+          - Norway
+
+      - name: CUSTOMER_CITY
+        synonyms: [customer location, city, town, customer town]
+        description: City where customer is located.
+        expr: CUSTOMER_CITY
+        data_type: VARCHAR
+        sample_values:
+          - Copenhagen
+          - Paris
+          - Amsterdam
+          - Berlin
+
+      # === GEOGRAPHY DIMENSIONS ===
       - name: DELIVERY_COUNTRY
-        synonyms:
-          - country
-          - destination_country
-          - sales_country
-          - ship_to_country
-          - shipping_country
-        description: Country where the products were delivered or shipped to. This is the PRIMARY field for geographic sales analysis (not customer_country). Use this to answer questions about sales by country or international vs domestic sales.
+        synonyms: [country, shipping country, destination country, sales country, ship to country]
+        description: Country where products were delivered. PRIMARY field for geographic sales analysis.
         expr: DELIVERY_COUNTRY
         data_type: VARCHAR
         sample_values:
           - Denmark
           - France
-          - Netherlands
           - Germany
           - Sweden
-      # ============================================================
-      # PRODUCT DATA QUALITY / ENRICHMENT DOMAIN
-      # Product master data quality and enrichment status
-      # ============================================================
-      - name: EAN13
-        synonyms:
-          - barcode
-          - ean
-          - ean_code
-          - product_barcode
-        description: EAN13 barcode from PrestaShop product master. Used for product identification and inventory tracking.
-        expr: EAN13
+          - Netherlands
+
+      - name: MARKET
+        synonyms: [market type, domestic or international, market segment, sales market]
+        description: Market classification - National (domestic Denmark) or International (exports).
+        expr: MARKET
         data_type: VARCHAR
         sample_values:
-          - '5710534200001'
-          - '5710534200018'
-      # ============================================================
-      # FINANCIAL / CURRENCY DOMAIN
-      # Currency and exchange rate information
-      # ============================================================
-      - name: EXCHANGE_RATE
-        synonyms:
-          - conversion_rate
-          - fx_rate
-        description: Exchange rate used to convert invoice currency to DKK (base currency). Stored as basis points - divide by 100 for actual rate. Example 745 = 7.45 DKK per 1 EUR.
-        expr: EXCHANGE_RATE
+          - National
+          - International
+
+      # === TRANSACTION DIMENSIONS ===
+      - name: INVOICE_ID
+        synonyms: [invoice number, order number, order id, invoice num, booking number]
+        description: Unique invoice identifier. CRITICAL for AOV - use COUNT(DISTINCT invoice_id) to count orders.
+        expr: INVOICE_ID
         data_type: NUMBER
         sample_values:
-          - '100'
-          - '745'
-          - '72'
+          - '10001'
+          - '10002'
+          - '10003'
+
+      - name: LINE_ID
+        synonyms: [line number, invoice line, line item, line seq]
+        description: Line number within an invoice.
+        expr: LINE_ID
+        data_type: NUMBER
+        sample_values:
+          - '1'
+          - '2'
+          - '3'
+
       - name: INVOICE_CURRENCY
-        synonyms:
-          - currency
-          - invoice_curr
-          - transaction_currency
-        description: Original currency of the invoice (DKK, EUR, SEK, etc.). Note that all amounts in this dataset are already converted to DKK using the exchange rate, so this is informational only.
+        synonyms: [currency, transaction currency, invoice curr, original currency]
+        description: Original invoice currency (DKK, EUR, SEK, NOK). All amounts already converted to DKK.
         expr: INVOICE_CURRENCY
         data_type: VARCHAR
         sample_values:
@@ -210,226 +196,22 @@ tables:
           - EUR
           - SEK
           - NOK
-      # ============================================================
-      # INVOICE / TRANSACTION DOMAIN
-      # Invoice and line-level transaction identifiers
-      # ============================================================
-      - name: INVOICE_ID
-        synonyms:
-          - booked_invoice_number
-          - invoice
-          - invoice_num
-          - invoice_number
-          - order_id
-          - order_number
-        description: |
-          Unique identifier for each invoice. Use this to analyze invoice-level metrics or count distinct invoices.
 
-          **CRITICAL for Average Order Value (AOV):**
-          To calculate AOV correctly, use: SUM(line_revenue_dkk) / COUNT(DISTINCT invoice_id)
-          DO NOT use AVG(line_revenue_dkk) as this calculates average line value, not average invoice value.
-        expr: INVOICE_ID
-        data_type: NUMBER
-        sample_values:
-          - '10001'
-          - '10002'
-          - '10003'
-      - name: LINE_ID
-        synonyms:
-          - invoice_line
-          - line
-          - line_number
-        description: Line number within an invoice. Useful for counting line items or analyzing line-level detail.
-        expr: LINE_ID
-        data_type: NUMBER
-        sample_values:
-          - '1'
-          - '2'
-          - '3'
-      - name: MARKET
-        synonyms:
-          - domestic_international
-          - market_segment
-          - market_type
-        description: Market classification. 'National' indicates domestic Denmark sales, 'International' indicates exports to other countries.
-        expr: MARKET
-        data_type: VARCHAR
-        sample_values:
-          - National
-          - International
-      - name: PARENT_CATEGORY_ID
-        synonyms:
-          - parent_cat_id
-        description: Parent category ID from PrestaShop hierarchy. Used for category tree analysis.
-        expr: PARENT_CATEGORY_ID
-        data_type: NUMBER
-        sample_values:
-          - '2'
-          - '3'
-      - name: PRESTASHOP_MATCH_STATUS
-        synonyms:
-          - data_quality_flag
-          - enrichment_status
-          - match_status
-        description: Indicates whether the SKU was matched with PrestaShop product master data. 'Matched' = full PrestaShop enrichment available (85%+ of 2024-2025 data), 'Adjustment Item' = discount/freight line items (rabat, fragtum, fragtmm), 'Not in PrestaShop' = SKU exists only in e-conomic (mostly pre-2024 data with old SKU format). Use this to filter for fully enriched product analysis.
-        expr: PRESTASHOP_MATCH_STATUS
-        data_type: VARCHAR
-        sample_values:
-          - Matched
-          - Adjustment Item
-          - Not in PrestaShop
-      - name: PRESTASHOP_STOCK_QTY
-        synonyms:
-          - available_stock
-          - inventory_level
-          - stock_quantity
-        description: Current stock quantity from PrestaShop inventory system. Use for inventory analysis and stockout prevention.
-        expr: PRESTASHOP_STOCK_QTY
-        data_type: NUMBER
-        sample_values:
-          - '50'
-          - '120'
-          - '0'
-      - name: PRODUCT_CATEGORY_ECONOMIC
-        synonyms:
-          - economic_category
-          - product_group_economic
-        description: Product category from e-conomic system. Note - PrestaShop CATEGORY field is preferred for analysis.
-        expr: PRODUCT_CATEGORY_ECONOMIC
-        data_type: VARCHAR
-        sample_values:
-          - Dog Products
-          - Pet Accessories
-          - Other
-      - name: PRODUCT_NAME
-        synonyms:
-          - item
-          - item_name
-          - product
-          - product_description
-        description: Full product name including size and variant information.
-        expr: PRODUCT_NAME
-        data_type: VARCHAR
-        sample_values:
-          - Dog Harness - Size M - Black
-          - Dog Lead - 2m - Red
-          - Dog Collar - Size L - Blue
-      - name: PRODUCT_SKU
-        synonyms:
-          - item_number
-          - product_code
-          - product_id
-          - product_number
-          - sku
-        description: Stock Keeping Unit - unique product identifier. Use this to analyze specific product sales or count distinct products.
-        expr: PRODUCT_SKU
-        data_type: VARCHAR
-        sample_values:
-          - DG-HAR-001
-          - DG-LEAD-002
-          - rabat
-          - fragtmm
-      - name: SIZE
-        synonyms:
-          - dog_size
-          - product_size
-          - size_variant
-        description: Product size variant from PrestaShop (XS, S, M, L, XL, M/L, L/XL, One-Size). Essential for analyzing product performance by size and inventory planning.
-        expr: SIZE
-        data_type: VARCHAR
-        sample_values:
-          - XS
-          - S
-          - M
-          - L
-          - XL
-          - M/L
-          - One-Size
     time_dimensions:
-      # ============================================================
-      # TIME DOMAIN
-      # Date and time dimensions for temporal analysis
-      # ============================================================
       - name: SALE_DATE
-        synonyms:
-          - date
-          - invoice_date
-          - order_date
-          - sale_day
-          - sales_date
-          - transaction_date
-        description: Date when the invoice was issued and sale was made. This is the PRIMARY date field for time-based analysis. Use this for trends, year-over-year comparisons, and time period filters.
+        synonyms: [date, invoice date, order date, transaction date, booking date, sales date]
+        description: Date when invoice was issued. PRIMARY date field for all time-based analysis.
         expr: SALE_DATE
         data_type: DATE
         sample_values:
-          - '2024-01-15'
-          - '2024-02-20'
-          - '2024-03-10'
+          - '2025-01-15'
+          - '2025-02-20'
+          - '2025-03-10'
+
     facts:
-      # ============================================================
-      # FINANCIAL METRICS DOMAIN
-      # Revenue, cost, profit, and pricing metrics
-      # ============================================================
-      - name: LINE_COST_DKK
-        synonyms:
-          - cogs
-          - cost
-          - cost_of_goods
-          - total_cost
-        description: Total cost for this invoice line in DKK (Danish Kroner). This is quantity * unit_cost. Use for profit calculations.
-        expr: LINE_COST_DKK
-        data_type: NUMBER
-        sample_values:
-          - '150.00'
-          - '375.00'
-          - '540.00'
-      - name: LINE_PROFIT_DKK
-        synonyms:
-          - contribution
-          - earnings
-          - gross_profit
-          - margin_amount
-          - profit
-        description: Gross profit for this invoice line in DKK (Danish Kroner). Calculated as line_revenue_dkk - line_cost_dkk. This represents the profit before operating expenses.
-        expr: LINE_PROFIT_DKK
-        data_type: NUMBER
-        sample_values:
-          - '149.00'
-          - '372.50'
-          - '-50.00'
       - name: LINE_REVENUE_DKK
-        synonyms:
-          - amount
-          - invoice_amount
-          - line_amount
-          - line_total
-          - monetary_amount
-          - net_amount
-          - revenue
-          - sales
-          - sales_amount
-          - total_amount
-          - total_revenue
-          - total_sales
-          - turnover
-        description: |
-          **PRIMARY REVENUE METRIC - USE THIS BY DEFAULT FOR ALL REVENUE/SALES CALCULATIONS.**
-
-          Total revenue for this invoice line in DKK (Danish Kroner). This is the complete invoice line amount including:
-          - Product sales (VARE)
-          - Freight/shipping charges (FRAGT)
-          - Discounts (RABAT - negative amounts)
-          - Services (YDELSE)
-
-          This represents the ACTUAL amount invoiced to customers. Use SUM(line_revenue_dkk) to calculate:
-          - Total sales/revenue
-          - Revenue by period, country, customer, or any dimension
-          - All standard business reporting
-          - KPIs and executive dashboards
-
-          **IMPORTANT**: Always use LINE_REVENUE_DKK unless explicitly asked for "product revenue only" or "product sales only", in which case use PRODUCT_REVENUE_DKK.
-
-          Formula: quantity * unit_price (already in DKK base currency)
+        synonyms: [revenue, sales, total sales, sales amount, net sales, turnover]
+        description: Total revenue for this line in DKK including products, freight, and discounts. PRIMARY revenue metric for all reporting.
         expr: LINE_REVENUE_DKK
         data_type: NUMBER
         default_aggregation: sum
@@ -437,35 +219,31 @@ tables:
           - '299.00'
           - '747.50'
           - '-50.00'
+          - '1250.00'
+
+      - name: LINE_COST_DKK
+        synonyms: [cost, cogs, total cost, cost of goods]
+        description: Total cost for this line in DKK. Currently set to 0 - will be populated when cost data is loaded.
+        expr: LINE_COST_DKK
+        data_type: NUMBER
+        default_aggregation: sum
+        sample_values:
+          - '0.00'
+
+      - name: LINE_PROFIT_DKK
+        synonyms: [profit, gross profit, margin amount, contribution, earnings]
+        description: Gross profit for this line in DKK. Currently equals revenue since cost data is not yet loaded.
+        expr: LINE_PROFIT_DKK
+        data_type: NUMBER
+        default_aggregation: sum
+        sample_values:
+          - '299.00'
+          - '747.50'
+          - '1250.00'
+
       - name: PRODUCT_REVENUE_DKK
-        synonyms:
-          - goods_revenue
-          - merchandise_sales
-          - product_only_revenue
-          - product_sales
-        description: |
-          **SPECIALIZED METRIC - Only use when explicitly asked for "product revenue only" or "product sales only".**
-
-          Revenue from physical product sales ONLY in DKK. This excludes:
-          - Freight/shipping charges
-          - Discounts (rabat, fragtum, fragtmm)
-          - Services
-          - Adjustment items
-
-          **DO NOT use this metric for:**
-          - General revenue/sales questions
-          - "Total sales" or "total revenue" questions
-          - Business reporting, KPIs, or dashboards
-          - Period-over-period comparisons (unless specifically about product sales only)
-          - Category revenue analysis (use LINE_REVENUE_DKK)
-          - Customer revenue analysis (use LINE_REVENUE_DKK)
-
-          **DO NOT use this field as a filter condition.** If using LINE_REVENUE_DKK for calculations, do not filter on PRODUCT_REVENUE_DKK.
-
-          Use this ONLY when specifically analyzing pure product performance without freight or discounts.
-          **For 95% of analyses, use LINE_REVENUE_DKK instead.**
-
-          Calculation: Sets revenue to 0 for rabat/freight SKUs and negative adjustments.
+        synonyms: [product sales only, merchandise sales, goods revenue, product only revenue]
+        description: Revenue from physical products only (excludes freight and discounts). Use LINE_REVENUE_DKK for standard reporting.
         expr: PRODUCT_REVENUE_DKK
         data_type: NUMBER
         default_aggregation: sum
@@ -473,220 +251,291 @@ tables:
           - '299.00'
           - '747.50'
           - '0.00'
-      - name: PROFIT_MARGIN_PERCENT
-        synonyms:
-          - gross_margin
-          - margin
-          - margin_percent
-          - margin_percentage
-          - profit_margin
-        description: Profit margin as a percentage. Calculated as (line_profit_dkk / line_revenue_dkk) * 100. Higher percentages indicate more profitable sales. Use AVG() to get average margins across products or segments. This is a computed field, not stored in the view.
-        expr: (LINE_PROFIT_DKK / NULLIF(LINE_REVENUE_DKK, 0)) * 100
-        data_type: NUMBER
-        sample_values:
-          - '49.83'
-          - '50.00'
-          - '35.60'
-      # ============================================================
-      # QUANTITY / VOLUME DOMAIN
-      # Unit quantities and volumes sold
-      # ============================================================
+
       - name: QUANTITY_SOLD
-        synonyms:
-          - pieces_sold
-          - qty
-          - quantity
-          - units
-          - units_sold
-          - volume
-        description: Number of units/items sold on this invoice line. Sum this to get total volume sold.
+        synonyms: [quantity, units sold, volume, units, pieces sold, qty]
+        description: Number of units sold on this line.
         expr: QUANTITY_SOLD
         data_type: NUMBER
+        default_aggregation: sum
         sample_values:
           - '1'
           - '5'
           - '12'
-      - name: UNIT_COST_DKK
-        synonyms:
-          - cogs_per_unit
-          - cost_per_unit
-          - unit_cost
-        description: Cost per unit in DKK (Danish Kroner). This is what Dog Copenhagen paid for each unit. Use for margin calculation.
-        expr: UNIT_COST_DKK
-        data_type: NUMBER
-        sample_values:
-          - '150.00'
-          - '75.00'
-          - '45.00'
+          - '25'
+
       - name: UNIT_PRICE_DKK
-        synonyms:
-          - price_per_unit
-          - selling_price
-          - unit_net_price
-          - unit_price
-        description: Net selling price per unit in DKK (Danish Kroner). This is the price charged to the customer per item, excluding VAT.
+        synonyms: [unit price, price per unit, selling price, item price, unit selling price]
+        description: Selling price per unit in DKK (excluding VAT).
         expr: UNIT_PRICE_DKK
         data_type: NUMBER
+        default_aggregation: avg
         sample_values:
           - '299.00'
           - '149.50'
           - '89.00'
+
+      - name: UNIT_COST_DKK
+        synonyms: [unit cost, cost per unit, cogs per unit, item cost]
+        description: Cost per unit in DKK. Currently 0 - will be populated when cost data is loaded.
+        expr: UNIT_COST_DKK
+        data_type: NUMBER
+        default_aggregation: avg
+        sample_values:
+          - '0.00'
+
+    metrics:
+      - name: TOTAL_REVENUE
+        synonyms: [total sales, sum of revenue, total turnover, gross revenue]
+        description: Total revenue across all lines.
+        expr: SUM(line_revenue_dkk)
+
+      - name: TOTAL_PROFIT
+        synonyms: [total gross profit, sum of profit, total earnings]
+        description: Total gross profit across all lines. Currently equals revenue since cost data is not yet loaded.
+        expr: SUM(line_profit_dkk)
+
+      - name: PROFIT_MARGIN_PCT
+        synonyms: [profit margin, margin percentage, gross margin, margin pct]
+        description: Profit margin percentage. Currently ~100% since cost data is not yet loaded.
+        expr: (SUM(line_profit_dkk) / NULLIF(SUM(line_revenue_dkk), 0)) * 100
+
+      - name: AVERAGE_ORDER_VALUE
+        synonyms: [aov, avg order value, average invoice value, average basket, mean order value]
+        description: Average order value calculated as total revenue / distinct invoice count.
+        expr: SUM(line_revenue_dkk) / NULLIF(COUNT(DISTINCT invoice_id), 0)
+
+      - name: TOTAL_ORDERS
+        synonyms: [order count, invoice count, number of orders, total invoices]
+        description: Count of distinct invoices/orders.
+        expr: COUNT(DISTINCT invoice_id)
+
+      - name: TOTAL_CUSTOMERS
+        synonyms: [customer count, unique customers, number of customers, distinct customers]
+        description: Count of distinct customers.
+        expr: COUNT(DISTINCT customer_id)
+
+      - name: TOTAL_UNITS
+        synonyms: [units sold, total quantity, total volume, pieces sold]
+        description: Total units/quantity sold.
+        expr: SUM(quantity_sold)
+
+      - name: REVENUE_GROWTH_YOY_PCT
+        synonyms: [year over year growth, yoy growth, annual growth, yearly growth]
+        description: Year-over-year revenue growth percentage. Compares current period to same period last year.
+        expr: |
+          (SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) THEN line_revenue_dkk ELSE 0 END) -
+           SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) - 1 THEN line_revenue_dkk ELSE 0 END)) /
+          NULLIF(SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) - 1 THEN line_revenue_dkk ELSE 0 END), 0) * 100
+
+      - name: REVENUE_GROWTH_MOM_PCT
+        synonyms: [month over month growth, mom growth, monthly growth]
+        description: Month-over-month revenue growth percentage. Compares current month to previous month.
+        expr: |
+          (SUM(CASE WHEN DATE_TRUNC('MONTH', sale_date) = DATE_TRUNC('MONTH', CURRENT_DATE()) THEN line_revenue_dkk ELSE 0 END) -
+           SUM(CASE WHEN DATE_TRUNC('MONTH', sale_date) = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE())) THEN line_revenue_dkk ELSE 0 END)) /
+          NULLIF(SUM(CASE WHEN DATE_TRUNC('MONTH', sale_date) = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE())) THEN line_revenue_dkk ELSE 0 END), 0) * 100
+
+    filters:
+      - name: MATCHED_PRODUCTS
+        synonyms: [prestashop matched, enriched products, matched only, prestashop enriched]
+        description: Products matched with PrestaShop catalog (85%+ of recent data).
+        expr: prestashop_match_status = 'Matched'
+
+      - name: PRODUCT_SALES_ONLY
+        synonyms: [exclude adjustments, products only, no freight, no discounts]
+        description: Excludes freight, discounts, and adjustment line items.
+        expr: prestashop_match_status = 'Matched'
+
+      - name: CURRENT_YEAR
+        synonyms: [this year, year to date, ytd, current fiscal year]
+        description: Sales from current calendar year.
+        expr: YEAR(sale_date) = YEAR(CURRENT_DATE())
+
+      - name: LAST_YEAR
+        synonyms: [previous year, prior year, last fiscal year]
+        description: Sales from previous calendar year.
+        expr: YEAR(sale_date) = YEAR(CURRENT_DATE()) - 1
+
+      - name: LAST_WEEK
+        synonyms: [past week, previous week, past 7 days]
+        description: Sales from last 7 days.
+        expr: sale_date >= DATEADD(DAY, -7, CURRENT_DATE())
+
+      - name: LAST_MONTH
+        synonyms: [past month, previous month, past 30 days, last 30 days]
+        description: Sales from last 30 days.
+        expr: sale_date >= DATEADD(DAY, -30, CURRENT_DATE())
+
+      - name: LAST_QUARTER
+        synonyms: [past quarter, previous quarter, last 90 days, past 90 days]
+        description: Sales from last 90 days.
+        expr: sale_date >= DATEADD(DAY, -90, CURRENT_DATE())
+
+      - name: B2B_ONLY
+        synonyms: [business customers only, wholesale only, b2b segment, business sales]
+        description: B2B customer segment only.
+        expr: customer_segment = 'B2B'
+
+      - name: B2C_ONLY
+        synonyms: [consumer sales only, direct sales only, b2c segment, retail sales]
+        description: B2C customer segment only.
+        expr: customer_segment = 'B2C'
+
+      - name: THIS_MONTH
+        synonyms: [current month, month to date, mtd, this month to date]
+        description: Sales from current calendar month to date.
+        expr: DATE_TRUNC('MONTH', sale_date) = DATE_TRUNC('MONTH', CURRENT_DATE())
+
+      - name: LAST_MONTH_COMPLETE
+        synonyms: [previous month complete, prior month, last full month, previous calendar month]
+        description: Sales from previous complete calendar month.
+        expr: DATE_TRUNC('MONTH', sale_date) = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
+
+      - name: THIS_QUARTER
+        synonyms: [current quarter, quarter to date, qtd, this quarter to date]
+        description: Sales from current calendar quarter to date (Q1/Q2/Q3/Q4).
+        expr: DATE_TRUNC('QUARTER', sale_date) = DATE_TRUNC('QUARTER', CURRENT_DATE())
+
+      - name: LAST_QUARTER_COMPLETE
+        synonyms: [previous quarter complete, prior quarter, last full quarter, previous calendar quarter]
+        description: Sales from previous complete calendar quarter.
+        expr: DATE_TRUNC('QUARTER', sale_date) = DATE_TRUNC('QUARTER', DATEADD(QUARTER, -1, CURRENT_DATE()))
+
+      - name: TOP_CATEGORIES
+        synonyms: [main categories, core products, primary categories, key products]
+        description: Focus on main product lines - Harnesses, Leads, and Collars only (excludes Bowls, Bags, Adjustments, Uncategorized).
+        expr: category IN ('Harnesses', 'Leads', 'Collars')
+
+      - name: SCANDINAVIA
+        synonyms: [nordic countries, scandinavian countries, nordic region, scandinavia region]
+        description: Sales to Scandinavian countries - Denmark, Norway, and Sweden.
+        expr: delivery_country IN ('Denmark', 'Norway', 'Sweden')
+
+      - name: DACH_REGION
+        synonyms: [dach, german speaking countries, dach countries]
+        description: Sales to DACH region - Germany, Austria, and Switzerland.
+        expr: delivery_country IN ('Germany', 'Austria', 'Switzerland')
+
+      - name: WESTERN_EUROPE
+        synonyms: [western europe region, west europe, western european countries]
+        description: Sales to Western European countries - France, Netherlands, Belgium, and Luxembourg.
+        expr: delivery_country IN ('France', 'United Kingdom', 'Netherlands', 'Belgium', 'Luxembourg')
+
   - name: VW_CUSTOMER_MASTER
-    description: Customer master data - one row per customer. Use this for customer lookups, segmentation analysis, and customer information.
+    description: Customer master data - one row per customer. Use for customer information and segmentation.
     base_table:
       database: ECONOMIC
       schema: SILVER
       table: VW_CUSTOMER_MASTER
+
     dimensions:
-      # ============================================================
-      # CUSTOMER DOMAIN
-      # Master customer information and attributes
-      # ============================================================
-      - name: CUSTOMER_CITY
-        synonyms:
-          - city
-          - location
-        description: City where customer is located.
-        expr: CUSTOMER_CITY
-        data_type: VARCHAR
-        sample_values:
-          - Copenhagen
-          - Paris
-      - name: CUSTOMER_COUNTRY
-        synonyms:
-          - country
-          - nation
-        description: Country where customer is registered.
-        expr: CUSTOMER_COUNTRY
-        data_type: VARCHAR
-        sample_values:
-          - Denmark
-          - France
       - name: CUSTOMER_ID
-        synonyms:
-          - cust_id
-          - customer_id_number
-          - customer_number
+        synonyms: [customer number, client id, account id, cust id]
         description: Unique customer identifier.
         expr: CUSTOMER_ID
         data_type: NUMBER
+        unique: true
         sample_values:
-          - '1'
-          - '2'
-          - '3'
+          - '1001'
+          - '2045'
+          - '3089'
+
       - name: CUSTOMER_NAME
-        synonyms:
-          - account_name
-          - client_name
-          - customer
-          - customer_name
-        description: Full name of the customer.
+        synonyms: [customer, client name, account name, company name]
+        description: Full customer name.
         expr: CUSTOMER_NAME
         data_type: VARCHAR
         sample_values:
           - Pet Shop Denmark
           - Dog Boutique Paris
+          - Hundebutikk Norge
+
       - name: CUSTOMER_SEGMENT
-        synonyms:
-          - customer_type
-          - segment
+        synonyms: [customer type, segment, business type]
         description: Customer segment - B2B or B2C.
         expr: CUSTOMER_SEGMENT
         data_type: VARCHAR
         sample_values:
           - B2B
           - B2C
-      # ============================================================
-      # CONTACT INFORMATION DOMAIN
-      # Customer contact details
-      # ============================================================
+
+      - name: CUSTOMER_COUNTRY
+        synonyms: [country, nation, registered country]
+        description: Country where customer is registered.
+        expr: CUSTOMER_COUNTRY
+        data_type: VARCHAR
+        sample_values:
+          - Denmark
+          - France
+          - Germany
+          - Sweden
+
+      - name: CUSTOMER_CITY
+        synonyms: [city, location, town]
+        description: Customer city location.
+        expr: CUSTOMER_CITY
+        data_type: VARCHAR
+        sample_values:
+          - Copenhagen
+          - Paris
+          - Amsterdam
+
       - name: EMAIL_ADDRESS
-        synonyms:
-          - contact_email
-          - email
+        synonyms: [email, contact email, customer email]
         description: Customer email address.
         expr: EMAIL_ADDRESS
         data_type: VARCHAR
         sample_values:
           - contact@petshop.dk
           - info@dogboutique.fr
-      - name: PHONE_NUMBER
-        synonyms:
-          - phone
-          - telephone
-        description: Customer phone number.
-        expr: PHONE_NUMBER
-        data_type: VARCHAR
-        sample_values:
-          - +45 12345678
-          - +33 123456789
-      # ============================================================
-      # FINANCIAL PREFERENCES DOMAIN
-      # Customer financial preferences
-      # ============================================================
+
       - name: PREFERRED_CURRENCY
-        synonyms:
-          - currency
-        description: Customer's preferred transaction currency.
+        synonyms: [currency, default currency]
+        description: Customer preferred transaction currency.
         expr: PREFERRED_CURRENCY
         data_type: VARCHAR
         sample_values:
           - DKK
           - EUR
+          - SEK
+
     primary_key:
       columns:
         - CUSTOMER_ID
+
   - name: VW_PRODUCT_MASTER
-    description: Product master data from PrestaShop with complete product hierarchy - one row per SKU/variant. Includes category, size, color, EAN13, and stock levels. Enriched with e-conomic fallback data for pre-2024 SKUs. Use this for product catalog analysis, inventory views, and product attribute lookups.
+    description: Product master data from PrestaShop - one row per SKU/variant. Includes category, size, color, EAN13. Use for product catalog lookups and active product analysis.
     base_table:
       database: ECONOMIC
       schema: SILVER
       table: VW_PRODUCT_MASTER
+
     dimensions:
-      # ============================================================
-      # PRODUCT ATTRIBUTES DOMAIN
-      # Product variants, attributes, and descriptive information
-      # ============================================================
-      - name: ALL_ATTRIBUTES_TEXT
-        synonyms:
-          - attributes
-          - variant_attributes
-        description: Combined text of all product attributes (size, color, etc.) separated by slashes.
-        expr: ALL_ATTRIBUTES_TEXT
+      - name: PRODUCT_SKU
+        synonyms: [sku, product code, item number, article number]
+        description: Unique product identifier (Stock Keeping Unit).
+        expr: PRODUCT_SKU
+        data_type: VARCHAR
+        unique: true
+        sample_values:
+          - HAR0569
+          - LEA0335
+          - COL0311
+
+      - name: PRODUCT_NAME
+        synonyms: [item name, product description, product title]
+        description: Full product name from PrestaShop.
+        expr: PRODUCT_NAME
         data_type: VARCHAR
         sample_values:
-          - M / Black
-          - L / Ocean Blue
-      # ============================================================
-      # PRODUCT HIERARCHY DOMAIN
-      # Category structure and organization
-      # ============================================================
-      - name: CATEGORY_ID
-        synonyms:
-          - cat_id
-        description: PrestaShop category ID for this product.
-        expr: CATEGORY_ID
-        data_type: NUMBER
-        sample_values:
-          - '10'
-          - '11'
-          - '12'
-      - name: CATEGORY_LEVEL
-        synonyms:
-          - cat_level
-        description: Category depth level in PrestaShop hierarchy.
-        expr: CATEGORY_LEVEL
-        data_type: NUMBER
-        sample_values:
-          - '1'
-          - '2'
-          - '3'
+          - Comfort Walk Air™ Harness
+          - Urban Trail™ Leash
+          - Urban Explorer™ Collar
+
       - name: CATEGORY_NAME
-        synonyms:
-          - category
-          - product_category
-          - product_group
-        description: Product category from PrestaShop. Main categories include Harnesses, Leads, Collars, Bowls, Bags.
+        synonyms: [category, product category, product group]
+        description: PrestaShop product category.
         expr: CATEGORY_NAME
         data_type: VARCHAR
         sample_values:
@@ -694,98 +543,10 @@ tables:
           - Leads
           - Collars
           - Bowls
-          - Bags
-      - name: COLOR
-        synonyms:
-          - color_variant
-          - product_color
-        description: Product color variant (e.g., Black, Mocca, Ocean Blue, Orange Sun).
-        expr: COLOR
-        data_type: VARCHAR
-        sample_values:
-          - Black
-          - Mocca
-          - Ocean Blue
-          - Orange Sun
-          - Purple Passion
-      # ============================================================
-      # PRODUCT IDENTIFICATION DOMAIN
-      # SKU, barcode, and unique identifiers
-      # ============================================================
-      - name: EAN13
-        synonyms:
-          - barcode
-          - ean
-        description: EAN13 barcode for product identification and inventory tracking.
-        expr: EAN13
-        data_type: VARCHAR
-        sample_values:
-          - '5710534200001'
-          - '5710534200018'
-      # ============================================================
-      # PRODUCT STATUS DOMAIN
-      # Product activity and availability flags
-      # ============================================================
-      - name: IS_ACTIVE
-        synonyms:
-          - active
-          - is_product_active
-          - product_active
-        description: Indicates if the product is currently active in PrestaShop (true/false). Use to filter for currently available products.
-        expr: IS_ACTIVE
-        data_type: BOOLEAN
-        sample_values:
-          - 'true'
-          - 'false'
-      - name: PARENT_CATEGORY_ID
-        synonyms:
-          - parent_cat_id
-        description: Parent category ID in PrestaShop hierarchy.
-        expr: PARENT_CATEGORY_ID
-        data_type: NUMBER
-        sample_values:
-          - '2'
-          - '3'
-      - name: PARENT_PRODUCT_ID
-        synonyms:
-          - base_product_id
-          - product_id
-        description: PrestaShop parent product ID. Multiple variants share the same parent product ID.
-        expr: PARENT_PRODUCT_ID
-        data_type: NUMBER
-        sample_values:
-          - '123'
-          - '124'
-          - '125'
-      - name: PRODUCT_NAME
-        synonyms:
-          - item_name
-          - product
-          - product_description
-        description: Full product name from PrestaShop. For unmatched SKUs, falls back to e-conomic description.
-        expr: PRODUCT_NAME
-        data_type: VARCHAR
-        sample_values:
-          - Comfort Walk Air™ Harness
-          - Urban Trail™ Leash
-          - Urban Explorer™ Collar
-      - name: PRODUCT_SKU
-        synonyms:
-          - item_number
-          - product_code
-          - sku
-        description: Unique product identifier (Stock Keeping Unit). Primary key for product lookups.
-        expr: PRODUCT_SKU
-        data_type: VARCHAR
-        sample_values:
-          - HAR0569
-          - LEA0335
-          - COL0311
+
       - name: SIZE
-        synonyms:
-          - product_size
-          - size_variant
-        description: Product size (XS, S, M, L, XL, M/L, L/XL, One-Size).
+        synonyms: [product size, size variant, size option]
+        description: Product size.
         expr: SIZE
         data_type: VARCHAR
         sample_values:
@@ -794,74 +555,78 @@ tables:
           - M
           - L
           - XL
-          - M/L
-          - One-Size
+
+      - name: COLOR
+        synonyms: [product color, color variant, colour]
+        description: Product color.
+        expr: COLOR
+        data_type: VARCHAR
+        sample_values:
+          - Black
+          - Mocca
+          - Ocean Blue
+          - Orange Sun
+
+      - name: EAN13
+        synonyms: [barcode, ean, gtin]
+        description: EAN13 barcode for product identification.
+        expr: EAN13
+        data_type: VARCHAR
+        sample_values:
+          - '5710534200001'
+          - '5710534200018'
+
+      - name: IS_ACTIVE
+        synonyms: [active, product active, is available]
+        description: Whether product is currently active in PrestaShop.
+        expr: IS_ACTIVE
+        data_type: BOOLEAN
+        sample_values:
+          - 'true'
+          - 'false'
+
       - name: VARIANT_ID
-        synonyms:
-          - combination_id
-          - prestashop_variant_id
-        description: PrestaShop combination ID - unique identifier for this specific variant (size/color combination).
+        synonyms: [combination id, prestashop variant id]
+        description: PrestaShop variant ID (unique size/color combination).
         expr: VARIANT_ID
         data_type: NUMBER
         sample_values:
           - '949'
           - '950'
           - '1021'
+
     time_dimensions:
-      # ============================================================
-      # TIME DOMAIN
-      # Product data timestamps
-      # ============================================================
       - name: LAST_UPDATED_DATE
-        synonyms:
-          - last_modified
-          - updated_date
-        description: Date when product information was last updated in PrestaShop.
+        synonyms: [last modified, updated date, last update]
+        description: Date when product was last updated in PrestaShop.
         expr: LAST_UPDATED_DATE
         data_type: TIMESTAMP_LTZ
         sample_values:
-          - '2024-01-15'
           - '2024-11-05'
+          - '2025-01-15'
+
     facts:
-      # ============================================================
-      # PRICING DOMAIN
-      # Price adjustments and impacts
-      # ============================================================
       - name: PRICE_IMPACT
-        synonyms:
-          - price_modifier
-          - variant_price_adjustment
-        description: Price adjustment for this variant compared to base product price. Typically 0 or small positive/negative values.
+        synonyms: [variant price adjustment, price modifier]
+        description: Price adjustment for this variant vs base product price.
         expr: PRICE_IMPACT
         data_type: NUMBER
+        default_aggregation: avg
         sample_values:
           - '0.00'
           - '25.00'
           - '-10.00'
-      # ============================================================
-      # INVENTORY DOMAIN
-      # Stock levels and inventory metrics
-      # ============================================================
-      - name: STOCK_QUANTITY
-        synonyms:
-          - available_stock
-          - inventory
-          - qty_on_hand
-        description: Current inventory quantity in PrestaShop. Use for stock level analysis and reorder planning.
-        expr: STOCK_QUANTITY
-        data_type: NUMBER
-        sample_values:
-          - '50'
-          - '120'
-          - '0'
-          - '245'
+
+    filters:
+      - name: ACTIVE_PRODUCTS
+        synonyms: [active only, available products, current products]
+        description: Only currently active products.
+        expr: is_active = true
+
     primary_key:
       columns:
         - PRODUCT_SKU
-# ==============================================================================
-# DATA MODEL RELATIONSHIPS
-# Defines how tables connect to each other
-# ==============================================================================
+
 relationships:
   - name: SALES_TO_CUSTOMER
     left_table: VW_SALES_DETAIL
@@ -870,6 +635,7 @@ relationships:
       - left_column: CUSTOMER_ID
         right_column: CUSTOMER_ID
     relationship_type: many_to_one
+
   - name: SALES_TO_PRODUCT
     left_table: VW_SALES_DETAIL
     right_table: VW_PRODUCT_MASTER
@@ -877,287 +643,150 @@ relationships:
       - left_column: PRODUCT_SKU
         right_column: PRODUCT_SKU
     relationship_type: many_to_one
-# ==============================================================================
-# VERIFIED QUERIES
-# Pre-validated example queries for common business questions
-# ==============================================================================
+
 verified_queries:
-  - name: total_revenue_by_country
-    question: What were the total sales by delivery country?
-    use_as_onboarding_question: true
+  - name: last_week_revenue
+    question: What were our total sales last week?
     sql: |
-      SELECT
-        delivery_country,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        COUNT(DISTINCT invoice_id) AS invoice_count
+      SELECT SUM(line_revenue_dkk) AS total_revenue_dkk, COUNT(DISTINCT invoice_id) AS orders
       FROM VW_SALES_DETAIL
-      GROUP BY delivery_country
-      ORDER BY total_revenue_dkk DESC
+      WHERE sale_date >= DATEADD(DAY, -7, CURRENT_DATE())
     verified_by: System
     verified_at: 1730325600
-  - name: b2b_vs_b2c_comparison
-    question: Compare B2B versus B2C sales performance
     use_as_onboarding_question: true
+
+  - name: last_month_by_category
+    question: Show me revenue by category for the last month
     sql: |
-      SELECT
-        customer_segment,
-        COUNT(DISTINCT customer_id) AS customer_count,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        SUM(line_profit_dkk) AS total_profit_dkk,
-        AVG(profit_margin_percent) AS avg_margin_percent
+      SELECT category, SUM(line_revenue_dkk) AS revenue, SUM(quantity_sold) AS units, COUNT(DISTINCT invoice_id) AS orders
       FROM VW_SALES_DETAIL
+      WHERE sale_date >= DATEADD(DAY, -30, CURRENT_DATE())
+        AND prestashop_match_status = 'Matched'
+      GROUP BY category
+      ORDER BY revenue DESC
+    verified_by: System
+    verified_at: 1730937600
+    use_as_onboarding_question: true
+
+  - name: b2b_vs_b2c_last_quarter
+    question: Compare B2B versus B2C sales for the last quarter
+    sql: |
+      SELECT customer_segment, COUNT(DISTINCT customer_id) AS customers, SUM(line_revenue_dkk) AS revenue,
+        COUNT(DISTINCT invoice_id) AS orders, SUM(line_revenue_dkk) / NULLIF(COUNT(DISTINCT invoice_id), 0) AS aov
+      FROM VW_SALES_DETAIL
+      WHERE sale_date >= DATEADD(DAY, -90, CURRENT_DATE())
       GROUP BY customer_segment
-      ORDER BY total_revenue_dkk DESC
+      ORDER BY revenue DESC
     verified_by: System
     verified_at: 1730325600
-  - name: top_products_by_revenue
-    question: Show me the top 10 products by revenue
     use_as_onboarding_question: true
+
+  - name: top_products_this_month
+    question: Show me the top 10 products by revenue this month
     sql: |
-      SELECT
-        product_sku,
-        product_name,
-        category,
-        size,
-        color,
-        SUM(quantity_sold) AS total_units_sold,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        SUM(line_profit_dkk) AS total_profit_dkk,
-        CASE
-          WHEN SUM(line_revenue_dkk) = 0 THEN 0
-          ELSE (SUM(line_profit_dkk) / SUM(line_revenue_dkk)) * 100
-        END AS margin_percent
+      SELECT product_sku, product_name, category, size, color, SUM(quantity_sold) AS units, SUM(line_revenue_dkk) AS revenue
       FROM VW_SALES_DETAIL
-      WHERE prestashop_match_status = 'Matched'
+      WHERE sale_date >= DATE_TRUNC('MONTH', CURRENT_DATE())
+        AND prestashop_match_status = 'Matched'
       GROUP BY product_sku, product_name, category, size, color
-      ORDER BY total_revenue_dkk DESC
+      ORDER BY revenue DESC
       LIMIT 10
     verified_by: System
     verified_at: 1730937600
-  - name: monthly_sales_trend
-    question: Show me the monthly sales trend for 2025
-    use_as_onboarding_question: false
+    use_as_onboarding_question: true
+
+  - name: monthly_trend_2025
+    question: Show monthly sales trend for 2025
     sql: |
-      SELECT
-        DATE_TRUNC('MONTH', sale_date) AS month,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        SUM(line_profit_dkk) AS total_profit_dkk,
-        COUNT(DISTINCT invoice_id) AS invoice_count
+      SELECT DATE_TRUNC('MONTH', sale_date) AS month, SUM(line_revenue_dkk) AS revenue,
+        COUNT(DISTINCT invoice_id) AS orders, SUM(line_revenue_dkk) / NULLIF(COUNT(DISTINCT invoice_id), 0) AS aov
       FROM VW_SALES_DETAIL
       WHERE YEAR(sale_date) = 2025
       GROUP BY DATE_TRUNC('MONTH', sale_date)
       ORDER BY month
     verified_by: System
     verified_at: 1730325600
-  - name: revenue_by_category
-    question: What is the revenue breakdown by product category?
-    use_as_onboarding_question: true
+
+  - name: sales_by_country_last_month
+    question: What were sales by delivery country in the last month?
     sql: |
-      SELECT
-        category,
-        COUNT(DISTINCT product_sku) AS sku_count,
-        SUM(quantity_sold) AS units_sold,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        SUM(line_profit_dkk) AS total_profit_dkk,
-        CASE
-          WHEN SUM(line_revenue_dkk) = 0 THEN 0
-          ELSE (SUM(line_profit_dkk) / SUM(line_revenue_dkk)) * 100
-        END AS margin_pct,
-        COUNT(*) AS line_count
+      SELECT delivery_country, SUM(line_revenue_dkk) AS revenue, COUNT(DISTINCT invoice_id) AS orders
       FROM VW_SALES_DETAIL
-      WHERE prestashop_match_status = 'Matched'
-      GROUP BY category
-      ORDER BY total_revenue_dkk DESC
+      WHERE sale_date >= DATEADD(DAY, -30, CURRENT_DATE())
+      GROUP BY delivery_country
+      ORDER BY revenue DESC
     verified_by: System
-    verified_at: 1730937600
-  - name: revenue_by_size_and_color
-    question: Show me the top 20 size and color combinations by revenue
-    use_as_onboarding_question: false
+    verified_at: 1730325600
+
+  - name: size_color_performance_ytd
+    question: Show top size and color combinations by revenue this year
     sql: |
-      SELECT
-        size,
-        color,
-        COUNT(DISTINCT product_sku) AS sku_count,
-        SUM(quantity_sold) AS units_sold,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        COUNT(*) AS line_count
+      SELECT size, color, SUM(quantity_sold) AS units, SUM(line_revenue_dkk) AS revenue
       FROM VW_SALES_DETAIL
-      WHERE prestashop_match_status = 'Matched'
+      WHERE YEAR(sale_date) = YEAR(CURRENT_DATE())
+        AND prestashop_match_status = 'Matched'
       GROUP BY size, color
-      ORDER BY total_revenue_dkk DESC
+      ORDER BY revenue DESC
       LIMIT 20
     verified_by: System
     verified_at: 1730937600
-  - name: prestashop_match_quality
-    question: What is the PrestaShop data match rate and quality?
-    use_as_onboarding_question: false
+
+  - name: week_over_week_comparison
+    question: Compare this week versus last week sales
     sql: |
       SELECT
-        prestashop_match_status,
-        COUNT(*) AS line_count,
-        COUNT(DISTINCT product_sku) AS unique_skus,
-        SUM(line_revenue_dkk) AS revenue_dkk,
-        ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) AS pct_of_lines,
-        ROUND(SUM(line_revenue_dkk) * 100.0 / SUM(SUM(line_revenue_dkk)) OVER (), 2) AS pct_of_revenue
+        CASE WHEN sale_date >= DATEADD(DAY, -7, CURRENT_DATE()) THEN 'This Week'
+             WHEN sale_date >= DATEADD(DAY, -14, CURRENT_DATE()) THEN 'Last Week'
+        END AS period,
+        SUM(line_revenue_dkk) AS revenue,
+        COUNT(DISTINCT invoice_id) AS orders,
+        SUM(quantity_sold) AS units
       FROM VW_SALES_DETAIL
-      WHERE YEAR(sale_date) IN (2024, 2025)
-      GROUP BY prestashop_match_status
-      ORDER BY line_count DESC
+      WHERE sale_date >= DATEADD(DAY, -14, CURRENT_DATE())
+      GROUP BY period
+      ORDER BY period DESC
     verified_by: System
     verified_at: 1730937600
-  - name: category_performance_by_segment
-    question: Compare category performance between B2B and B2C customers
-    use_as_onboarding_question: false
+    use_as_onboarding_question: true
+
+  - name: top_customers_last_quarter
+    question: Show me top 10 customers by revenue in the last quarter
     sql: |
-      SELECT
-        customer_segment,
-        category,
-        SUM(quantity_sold) AS units_sold,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        SUM(line_profit_dkk) AS total_profit_dkk,
-        CASE
-          WHEN SUM(line_revenue_dkk) = 0 THEN 0
-          ELSE (SUM(line_profit_dkk) / SUM(line_revenue_dkk)) * 100
-        END AS margin_pct
+      SELECT customer_name, customer_segment, delivery_country,
+        SUM(line_revenue_dkk) AS revenue, COUNT(DISTINCT invoice_id) AS orders
+      FROM VW_SALES_DETAIL
+      WHERE sale_date >= DATEADD(DAY, -90, CURRENT_DATE())
+      GROUP BY customer_name, customer_segment, delivery_country
+      ORDER BY revenue DESC
+      LIMIT 10
+    verified_by: System
+    verified_at: 1730937600
+
+  - name: category_by_segment_this_year
+    question: Compare category performance between B2B and B2C this year
+    sql: |
+      SELECT customer_segment, category, SUM(quantity_sold) AS units, SUM(line_revenue_dkk) AS revenue
+      FROM VW_SALES_DETAIL
+      WHERE YEAR(sale_date) = YEAR(CURRENT_DATE())
+        AND prestashop_match_status = 'Matched'
+      GROUP BY customer_segment, category
+      ORDER BY customer_segment, revenue DESC
+    verified_by: System
+    verified_at: 1730937600
+
+  - name: yoy_revenue_growth_by_category
+    question: Show year over year revenue growth by category
+    sql: |
+      SELECT category,
+        SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) THEN line_revenue_dkk ELSE 0 END) AS current_year_revenue,
+        SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) - 1 THEN line_revenue_dkk ELSE 0 END) AS last_year_revenue,
+        (SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) THEN line_revenue_dkk ELSE 0 END) -
+         SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) - 1 THEN line_revenue_dkk ELSE 0 END)) /
+        NULLIF(SUM(CASE WHEN YEAR(sale_date) = YEAR(CURRENT_DATE()) - 1 THEN line_revenue_dkk ELSE 0 END), 0) * 100 AS growth_pct
       FROM VW_SALES_DETAIL
       WHERE prestashop_match_status = 'Matched'
-      GROUP BY customer_segment, category
-      ORDER BY customer_segment, total_revenue_dkk DESC
+        AND YEAR(sale_date) IN (YEAR(CURRENT_DATE()), YEAR(CURRENT_DATE()) - 1)
+      GROUP BY category
+      ORDER BY current_year_revenue DESC
     verified_by: System
     verified_at: 1730937600
-  - name: inventory_with_sales_performance
-    question: Show me products with low inventory that have high sales
-    use_as_onboarding_question: false
-    sql: |
-      SELECT
-        pm.product_sku,
-        pm.product_name,
-        pm.category_name,
-        pm.size,
-        pm.color,
-        pm.stock_quantity,
-        SUM(sd.quantity_sold) AS units_sold_last_30_days,
-        SUM(sd.line_revenue_dkk) AS total_revenue_last_30_days,
-        CASE
-          WHEN pm.stock_quantity = 0 THEN 'Out of Stock'
-          WHEN pm.stock_quantity <= 20 THEN 'Low Stock'
-          WHEN pm.stock_quantity <= 50 THEN 'Medium Stock'
-          ELSE 'Good Stock'
-        END AS stock_status
-      FROM VW_PRODUCT_MASTER pm
-      LEFT JOIN VW_SALES_DETAIL sd
-        ON pm.product_sku = sd.product_sku
-        AND sd.sale_date >= DATEADD(DAY, -30, CURRENT_DATE())
-        AND sd.prestashop_match_status = 'Matched'
-      WHERE pm.is_active = true
-      GROUP BY pm.product_sku, pm.product_name, pm.category_name, pm.size, pm.color, pm.stock_quantity
-      HAVING SUM(sd.quantity_sold) > 10
-      ORDER BY stock_quantity ASC, units_sold_last_30_days DESC
-      LIMIT 20
-    verified_by: System
-    verified_at: 1730937600
-  - name: product_revenue_vs_total_revenue_comparison
-    question: Show me the difference between product revenue and total revenue including freight and discounts
-    use_as_onboarding_question: false
-    sql: |
-      SELECT
-        YEAR(sale_date) AS year,
-        MONTH(sale_date) AS month,
-        SUM(line_revenue_dkk) AS total_revenue_with_freight_discounts,
-        SUM(product_revenue_dkk) AS product_revenue_only,
-        SUM(line_revenue_dkk) - SUM(product_revenue_dkk) AS freight_and_discounts_amount,
-        CASE
-          WHEN SUM(line_revenue_dkk) = 0 THEN 0
-          ELSE ((SUM(line_revenue_dkk) - SUM(product_revenue_dkk)) / SUM(line_revenue_dkk)) * 100
-        END AS freight_discount_pct_of_total
-      FROM VW_SALES_DETAIL
-      WHERE YEAR(sale_date) IN (2024, 2025)
-      GROUP BY YEAR(sale_date), MONTH(sale_date)
-      ORDER BY year DESC, month DESC
-    verified_by: System
-    verified_at: 1730937600
-  - name: average_order_value_by_month
-    question: What is the average order value by month for 2025?
-    use_as_onboarding_question: true
-    sql: |
-      SELECT
-        DATE_TRUNC('MONTH', sale_date) AS month,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        COUNT(DISTINCT invoice_id) AS invoice_count,
-        SUM(line_revenue_dkk) / COUNT(DISTINCT invoice_id) AS avg_order_value_dkk
-      FROM VW_SALES_DETAIL
-      WHERE YEAR(sale_date) = 2025
-      GROUP BY DATE_TRUNC('MONTH', sale_date)
-      ORDER BY month
-    verified_by: System
-    verified_at: 1730937600
-  - name: monthly revenue for the last 4 months from July to October 2025
-    question: monthly revenue for the last 4 months from July to October 2025
-    sql: |-
-      SELECT
-        DATE_TRUNC('MONTH', sale_date) AS month,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        MIN(sale_date) AS min_sale_date,
-        MAX(sale_date) AS max_sale_date,
-        COUNT(DISTINCT DATE_TRUNC('MONTH', sale_date)) AS distinct_months,
-        MIN(line_revenue_dkk) AS min_line_revenue_dkk,
-        MAX(line_revenue_dkk) AS max_line_revenue_dkk,
-        AVG(line_revenue_dkk) AS avg_line_revenue_dkk
-      FROM
-        vw_sales_detail
-      WHERE
-        sale_date >= '2025-07-01'
-        AND sale_date <= '2025-10-31'
-      GROUP BY
-        DATE_TRUNC('MONTH', sale_date)
-      ORDER BY
-        month
-    use_as_onboarding_question: false
-    verified_by: Storm Volf
-    verified_at: 1762456658
-  - name: What is the revenue breakdown by product category for 2025?
-    question: What is the revenue breakdown by product category for 2025?
-    sql: |-
-      SELECT
-        vw_sales_detail.category AS category,
-        COUNT(DISTINCT vw_sales_detail.product_sku) AS unique_skus,
-        SUM(vw_sales_detail.quantity_sold) AS units_sold,
-        SUM(vw_sales_detail.line_revenue_dkk) AS total_revenue_dkk,
-        ROUND(
-          SUM(vw_sales_detail.line_revenue_dkk) * 100.0 / SUM(SUM(vw_sales_detail.line_revenue_dkk)) OVER (),
-          2
-        ) AS pct_of_revenue
-      FROM
-        vw_sales_detail AS vw_sales_detail
-      WHERE
-        YEAR(vw_sales_detail.sale_date) = 2025
-      GROUP BY
-        vw_sales_detail.category
-      ORDER BY
-        total_revenue_dkk DESC
-    use_as_onboarding_question: false
-    verified_by: Storm Volf
-    verified_at: 1762456724
-  - name: show me revenue by category for 2025
-    question: Show me revenue by category for 2025
-    sql: |-
-      SELECT
-        category,
-        COUNT(DISTINCT product_sku) AS unique_skus,
-        SUM(quantity_sold) AS units_sold,
-        SUM(line_revenue_dkk) AS total_revenue_dkk,
-        ROUND(
-          SUM(line_revenue_dkk) * 100.0 / NULLIF(SUM(SUM(line_revenue_dkk)) OVER (), 0),
-          2
-        ) AS pct_of_revenue
-      FROM
-        vw_sales_detail
-      WHERE
-        YEAR(sale_date) = 2025
-      GROUP BY
-        category
-      ORDER BY
-        total_revenue_dkk DESC NULLS LAST
-    use_as_onboarding_question: false
-    verified_by: Storm Volf
-    verified_at: 1762457177

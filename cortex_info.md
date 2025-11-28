@@ -43,3 +43,15 @@ When it's relevant:
   2. How does that compare to the previous month?
   3. Which countries drove the growth?
   4. What were our top products?"
+
+
+
+  ## Cortex example questions
+
+  - "Hvad var vores omsætning sidste uge?" (What was our revenue last week?)
+
+  - "Vis mig top 10 produkter i Skandinavien" (Show me top 10 products in
+  Scandinavia)
+  
+  - "Sammenlign B2B og B2C salg i denne måned" (Compare B2B and B2C sales
+  this month)
